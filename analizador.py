@@ -35,9 +35,6 @@ reserved = {
     'boolean': 'BOOLEAN',
     'print': 'PRINT',
     'for': 'FOR',
-    'each': 'EACH',
-    'in': 'IN',
-    'item': 'ITEM',
     'function': 'FUNCTION',
     'print': 'PRINT',
     'graph': 'GRAPH',
@@ -74,7 +71,7 @@ t_OPREL = r'&&|\|\|'
 t_ignore = ' \t\n\r'
 
 def t_ID(t):
-    r'[a-zA-Z0-9_]+'
+    r'[a-zA-Z][a-zA-Z0-9_]*'
     if t.value in reserved:
         t.type = reserved[t.value]
     return t
@@ -123,13 +120,8 @@ def p_param(p):
 
 def p_vars(p):
     '''
-    vars : VAR var_declares
-    '''
-
-def p_var_declares(p):
-    '''
-    var_declares : var_ids COLON type STOP var_declares
-                 | var_ids COLON type STOP
+    vars : VAR var_ids COLON type STOP vars
+         | VAR var_ids COLON type STOP
     '''
 
 def p_type(p):
@@ -154,24 +146,24 @@ def p_bloque(p):
 
 def p_estatutos(p):
     '''
-    estatutos : estatuto estatutos
-              | estatuto
+    estatutos : estatuto STOP estatutos
+              | estatuto STOP
     '''
 
 def p_estatuto(p):
     '''
     estatuto : while
              | do_while
-             | foreach
+             | for
              | asignacion
              | condicion
              | escritura
     '''
 
-def p_foreach(p):
+def p_for(p):
     # for each item X in myArray { }
     '''
-    foreach : FOR EACH ITEM ID IN ID bloque
+    for : FOR EXP_START asignacion STOP expresion STOP asignacion EXP_END bloque
     '''
 
 def p_while(p):
@@ -183,20 +175,28 @@ def p_while(p):
 def p_do_while(p):
     # do { } while (expresion);
     '''
-    do_while : DO bloque WHILE EXP_START expresion EXP_END STOP
+    do_while : DO bloque WHILE EXP_START expresion EXP_END
     '''
 
 def p_asignacion(p):
     '''
-    asignacion : id ASSIGN value STOP
-               | id ASSIGN ARR_START array ARR_END STOP
+    asignacion : id ASSIGN value
+               | id ASSIGN ARR_START array ARR_END
     '''
+    if p[1][0] == "ARRAY":
+        print "Asignacion de arreglo ", p[1][1]
+    else:
+        print "Asignacion de variable ", p[1][1]
 
-def p_id(p):
+def p_id_array(p):
     '''
     id : ID ARR_START e ARR_END
-       | ID
     '''
+    p[0] = ("ARRAY", p[1])
+
+def p_id(p):
+    'id : ID'
+    p[0] = ("VAR", p[1])
 
 def p_array(p):
     '''
@@ -214,12 +214,12 @@ def p_value(p):
 
 def p_condicion(p):
     '''
-    condicion : IF EXP_START expresion EXP_END bloque ELSE bloque STOP
-              | IF EXP_START expresion EXP_END bloque STOP
+    condicion : IF EXP_START expresion EXP_END bloque ELSE bloque
+              | IF EXP_START expresion EXP_END bloque
     '''
 
 def p_escritura(p):
-    'escritura : PRINT EXP_START concatenacion EXP_END STOP'
+    'escritura : PRINT EXP_START concatenacion EXP_END'
 
 def p_concatenacion(p):
     '''
@@ -265,10 +265,11 @@ def p_factor(p):
            | CTEF
            | id
     '''
+    print p[1]
 
 def p_error(p):
-    print('Error de sintaxis!')
-    print(p)
+    print 'Error de sintaxis!'
+    print p
 
 parser = yacc.yacc()
 
@@ -276,22 +277,23 @@ data = '''
 program MyProgram;
 
 function myFunc(int A, string B, boolean C)
+    var i: int;
 {
     test = A + 2;
     print(test);
-    myArray = [ 0, 1, 'test' ];
-    for each item i in myArray {
-        print(item);
-    }
-    A = myArray[0] + 1;
     while (C) {
-        myArray[0] = myArray[0] + 1;
-    }
+        myArray[0] = myArray[1] + 2;
+    };
+    myArray = [ 3, 4, "test" ];
+    for (i = 0; i < A; i = i + 1) {
+        print(i);
+    };
+    A = myArray[0] + 1;
 }
 
 var X: float;
-    Y: float;
-    A, B: int;
+var Y: float;
+var A, B: int;
 {
     print("Hello");
 
@@ -301,17 +303,17 @@ var X: float;
     Y = A[3 / 1];
 
     print(X);
-    
+
     if (A < B && 1 < 2) {
         print("Oops!");
     };
-    
+
     if (X > Y) {
         print("Value of X = " . X);
     }
     else {
         Y = 2 + 2 * X;
-    };  
+    };
 }
 '''
 
@@ -319,4 +321,3 @@ lexer.input(data)
 
 result = parser.parse(lexer=lexer)
 print(result)
-
