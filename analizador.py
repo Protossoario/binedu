@@ -3,24 +3,24 @@
 import ply.lex as lex
 
 tokens = [
-    'STOP',
-    'COLON',
-    'COMMA',
-    'ASSIGN',
-    'BLOCK_START',
-    'BLOCK_END',
-    'CONCAT',
-    'EXP_START',
-    'EXP_END',
-    'ID',
-    'CTEF',
-    'CTEI',
-    'CTESTR',
+    'T_STOP',
+    'T_COLON',
+    'T_COMMA',
+    'T_ASSIGN',
+    'T_BLOCK_START',
+    'T_BLOCK_END',
+    'T_CONCAT',
+    'T_EXP_START',
+    'T_EXP_END',
+    'T_ARR_START',
+    'T_ARR_END',
+    'T_ID',
+    'T_FLOAT',
+    'T_INT',
+    'T_STRING',
     'OPARIT',
     'OPFACT',
     'OPCOMP',
-    'ARR_START',
-    'ARR_END',
     'OPREL'
 ]
 
@@ -32,6 +32,7 @@ reserved = {
     'int': 'INT',
     'float': 'FLOAT',
     'string': 'STRING',
+    'char': 'CHAR',
     'boolean': 'BOOLEAN',
     'print': 'PRINT',
     'for': 'FOR',
@@ -48,35 +49,35 @@ reserved = {
 
 tokens += reserved.values()
 
-t_STOP = r'\;'
-t_COLON = r'\:'
-t_COMMA = r'\,'
-t_ASSIGN = r'\='
-t_BLOCK_START = r'\{'
-t_BLOCK_END = r'\}'
-t_CONCAT = r'\.'
-t_EXP_START = r'\('
-t_EXP_END = r'\)'
-t_ARR_START = r'\['
-t_ARR_END = r'\]'
+T_STOP = r'\;'
+T_COLON = r'\:'
+T_COMMA = r'\,'
+T_ASSIGN = r'\='
+T_BLOCK_START = r'\{'
+T_BLOCK_END = r'\}'
+T_CONCAT = r'\.'
+T_EXP_START = r'\('
+T_EXP_END = r'\)'
+T_ARR_START = r'\['
+T_ARR_END = r'\]'
 
-t_CTEF = r'[0-9]+\.[0-9]+f?'
-t_CTEI = r'[0-9]+'
-t_CTESTR = r'\".*\"'
-t_OPARIT = r'[+-]'
-t_OPFACT = r'[*/]'
-t_OPCOMP = r'[><]|!=|=='
-t_OPREL = r'&&|\|\|'
+T_FLOAT = r'[0-9]+\.[0-9]+f?'
+T_INT = r'[0-9]+'
+T_STRING = r'\".*\"'
+OPARIT = r'[+-]'
+OPFACT = r'[*/]'
+OPCOMP = r'[><]|!=|=='
+OPREL = r'&&|\|\|'
 
-t_ignore = ' \t\n\r'
+ignore = ' \t\n\r'
 
-def t_ID(t):
+def T_ID(t):
     r'[a-zA-Z][a-zA-Z0-9_]*'
     if t.value in reserved:
         t.type = reserved[t.value]
     return t
 
-def t_error(t):
+def error(t):
     print("Illegal character '%s'" % t.value[0])
     t.lexer.skip(1)
 
@@ -86,12 +87,16 @@ import ply.yacc as yacc
 
 def p_programa(p):
     '''
-    programa : PROGRAM ID STOP functions vars bloque
-             | PROGRAM ID STOP vars bloque
-             | PROGRAM ID STOP functions bloque
-             | PROGRAM ID STOP bloque
+    programa : PROGRAM T_ID T_STOP prog block
     '''
     print('Program syntax parsed correctly')
+
+def p_prog(p):
+    '''
+    prog : vars prog
+         | functions prog
+         |
+    '''
 
 def p_functions(p):
     '''
@@ -101,131 +106,152 @@ def p_functions(p):
 
 def p_func(p):
     '''
-    func : FUNCTION ID EXP_START parameters EXP_END vars bloque
-         | FUNCTION ID EXP_START parameters EXP_END bloque
-         | FUNCTION ID EXP_START EXP_END vars bloque
-         | FUNCTION ID EXP_START EXP_END bloque
+    func : FUNCTION T_ID T_EXP_START parameters T_EXP_END vars block
+         | FUNCTION T_ID T_EXP_START parameters T_EXP_END block
+         | FUNCTION T_ID T_EXP_START T_EXP_END vars block
+         | FUNCTION T_ID T_EXP_START T_EXP_END block
     '''
 
 def p_parameters(p):
     '''
-    parameters : param COMMA parameters
+    parameters : param T_COMMA parameters
                | param
     '''
 
 def p_param(p):
     '''
-    param : type ID
+    param : type T_ID
     '''
 
 def p_vars(p):
     '''
-    vars : VAR var_ids COLON type STOP vars
-         | VAR var_ids COLON type STOP
+    vars : VAR var_ids T_COLON type T_STOP vars
+         | VAR var_ids T_COLON type T_STOP
     '''
 
 def p_type(p):
     '''
-    type : INT
-         | FLOAT
+    type : BOOLEAN
+         | CHAR
          | STRING
-         | BOOLEAN
+         | INT
+         | FLOAT
     '''
 
 def p_var_ids(p):
     '''
-    var_ids : ID COMMA var_ids
-            | ID
+    var_ids : T_ID T_COMMA var_ids
+            | T_ID
     '''
 
-def p_bloque(p):
+def p_block(p):
     '''
-    bloque : BLOCK_START estatutos BLOCK_END
-           | BLOCK_START BLOCK_END
-    '''
-
-def p_estatutos(p):
-    '''
-    estatutos : estatuto STOP estatutos
-              | estatuto STOP
+    block : T_BLOCK_START process T_BLOCK_END
     '''
 
-def p_estatuto(p):
+def p_process(p):
     '''
-    estatuto : while
-             | do_while
-             | for
-             | asignacion
-             | condicion
-             | escritura
+    process : proc process
+            | proc
+            |
     '''
 
-def p_for(p):
-    # for each item X in myArray { }
+def p_proc(p):
     '''
-    for : FOR EXP_START asignacion STOP expresion STOP asignacion EXP_END bloque
+    proc : while
+         | do_while
+         | for
+         | asignacion
+         | condition
+         | write
     '''
 
 def p_while(p):
-    # while (expresion) { }
+    # while (expresion) { };
     '''
-    while : WHILE EXP_START expresion EXP_END bloque
+    while : WHILE T_EXP_START expresion T_EXP_END block
+    '''
+
+def p_for(p):
+    # for each item X in myArray { };
+    '''
+    for : FOR T_EXP_START asignacion T_STOP expresion T_STOP asignacion T_EXP_END block
+        | FOR T_EXP_START the_var T_STOP expresion T_STOP asignacion T_EXP_END block
+    '''
+
+def p_the_var(p):
+    '''
+    the_var : VAR T_ID T_COLON type
     '''
 
 def p_do_while(p):
     # do { } while (expresion);
     '''
-    do_while : DO bloque WHILE EXP_START expresion EXP_END
+    do_while : DO block WHILE T_EXP_START expresion T_EXP_END T_STOP
     '''
 
 def p_asignacion(p):
     '''
-    asignacion : id ASSIGN value
-               | id ASSIGN ARR_START array ARR_END
+    asignacion : id T_ASSIGN value T_STOP
+               | id T_ASSIGN T_ARR_START array T_ARR_END T_STOP
+               | id T_ARR_START expresion T_ARR_END T_STOP
     '''
     if p[1][0] == "ARRAY":
-        print "Asignacion de arreglo ", p[1][1]
+        print "Array assignment ", p[1][1]
     else:
-        print "Asignacion de variable ", p[1][1]
+        print "Variable assignment ", p[1][1]
 
 def p_id_array(p):
     '''
-    id : ID ARR_START e ARR_END
+    id : T_ID T_ARR_START e T_ARR_END
     '''
     p[0] = ("ARRAY", p[1])
 
 def p_id(p):
-    'id : ID'
+    'id : T_ID'
     p[0] = ("VAR", p[1])
 
 def p_array(p):
     '''
-    array : value COMMA array
+    array : value T_COMMA array
           | value
     '''
 
 def p_value(p):
     '''
     value : expresion
-          | CTESTR
+          | T_STRING
           | TRUE
           | FALSE
     '''
 
-def p_condicion(p):
+def p_condition(p):
     '''
-    condicion : IF EXP_START expresion EXP_END bloque ELSE bloque
-              | IF EXP_START expresion EXP_END bloque
+    condition : IF T_EXP_START expresion T_EXP_END block else_if else
+              | IF T_EXP_START expresion T_EXP_END block else_if
+              | IF T_EXP_START expresion T_EXP_END block else
+              | IF T_EXP_START expresion T_EXP_END block
     '''
 
-def p_escritura(p):
-    'escritura : PRINT EXP_START concatenacion EXP_END'
+def p_else_if(p):
+    '''
+    else_if : ELSE IF T_EXP_START expresion T_EXP_END block else_if
+            | ELSE IF T_EXP_START expresion T_EXP_END block
+    '''
+
+def p_else(p):
+    '''
+    else : ELSE block
+    '''
+
+def p_write(p):
+    'write : PRINT T_EXP_START concatenacion T_EXP_END'
 
 def p_concatenacion(p):
     '''
-    concatenacion : CTESTR CONCAT concatenacion
-                  | expresion CONCAT concatenacion
-                  | CTESTR
+    concatenacion : T_STRING T_CONCAT concatenacion
+                  | expresion T_CONCAT concatenacion
+                  | T_STRING
                   | expresion
     '''
 
@@ -258,11 +284,11 @@ def p_termino(p):
 
 def p_factor(p):
     '''
-    factor : EXP_START expresion EXP_END
-           | OPARIT CTEI
-           | OPARIT CTEF
-           | CTEI
-           | CTEF
+    factor : T_EXP_START expresion T_EXP_END
+           | OPARIT T_INT
+           | OPARIT T_FLOAT
+           | T_INT CONST
+           | T_FLOAT
            | id
     '''
     print p[1]
@@ -296,7 +322,7 @@ var Y: float;
 var A, B: int;
 {
     print("Hello");
-
+x=[];
     B = 7;
     A = B;
     X = 9;
