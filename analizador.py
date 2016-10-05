@@ -84,6 +84,26 @@ lexer = lex.lex()
 
 import ply.yacc as yacc
 
+class SymbolTable:
+    def __init__(self):
+        self.symbols = dict()
+        self.children = list()
+        self.parent = None
+
+    def insert(self, id, type):
+        self.symbols[id] = type
+
+    def lookup(self, id):
+        return self.symbols.get(id)
+
+    def addChild(self, child):
+        self.children.append(child)
+
+    def setParent(self, parent):
+        self.parent = parent
+
+currentSymbolTable = SymbolTable()
+
 def p_programa(p):
     '''
     programa : PROGRAM ID STOP functions vars bloque
@@ -92,6 +112,7 @@ def p_programa(p):
              | PROGRAM ID STOP bloque
     '''
     print('Program syntax parsed correctly')
+    print "Global scope symbols: ", currentSymbolTable.symbols
 
 def p_functions(p):
     '''
@@ -120,9 +141,16 @@ def p_param(p):
 
 def p_vars(p):
     '''
-    vars : VAR var_ids COLON type STOP vars
-         | VAR var_ids COLON type STOP
+    vars : type var_ids STOP vars
+         | type var_ids STOP
     '''
+    type = p[1]
+    for id in p[2]:
+        if currentSymbolTable.lookup(id) == type:
+            print "Error de variable duplicada: ", type , " ", id
+            raise SyntaxError
+        else:
+            currentSymbolTable.insert(id, p[1])
 
 def p_type(p):
     '''
@@ -131,12 +159,18 @@ def p_type(p):
          | STRING
          | BOOLEAN
     '''
+    p[0] = p[1].upper()
 
 def p_var_ids(p):
     '''
     var_ids : ID COMMA var_ids
             | ID
     '''
+    if len(p) < 4:
+        p[0] = [ p[1] ]
+    else:
+        p[3].append(p[1])
+        p[0] = p[3]
 
 def p_bloque(p):
     '''
@@ -183,10 +217,10 @@ def p_asignacion(p):
     asignacion : id ASSIGN value
                | id ASSIGN ARR_START array ARR_END
     '''
-    if p[1][0] == "ARRAY":
-        print "Asignacion de arreglo ", p[1][1]
-    else:
-        print "Asignacion de variable ", p[1][1]
+    #if p[1][0] == "ARRAY":
+    #    print "Asignacion de arreglo ", p[1][1]
+    #else:
+    #    print "Asignacion de variable ", p[1][1]
 
 def p_id_array(p):
     '''
@@ -265,7 +299,6 @@ def p_factor(p):
            | CTEF
            | id
     '''
-    print p[1]
 
 def p_error(p):
     print 'Error de sintaxis!'
@@ -277,7 +310,7 @@ data = '''
 program MyProgram;
 
 function myFunc(int A, string B, boolean C)
-    var i: int;
+    int i;
 {
     test = A + 2;
     print(test);
@@ -291,9 +324,9 @@ function myFunc(int A, string B, boolean C)
     A = myArray[0] + 1;
 }
 
-var X: float;
-var Y: float;
-var A, B: int;
+float X;
+float Y;
+int A, B;
 {
     print("Hello");
 
