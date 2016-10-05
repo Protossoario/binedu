@@ -127,6 +127,13 @@ def p_func(p):
          | FUNCTION ID EXP_START EXP_END vars bloque
          | FUNCTION ID EXP_START EXP_END bloque
     '''
+    type = 'FUNCTION'
+    id = p[2]
+    if currentSymbolTable.lookup(id) == type:
+        print "Error de funcion duplicada: ", id
+        raise SyntaxError
+    else:
+        currentSymbolTable.insert(id, type)
 
 def p_parameters(p):
     '''
