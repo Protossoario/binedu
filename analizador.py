@@ -4,7 +4,6 @@ import ply.lex as lex
 
 tokens = [
     'T_STOP',
-    'T_COLON',
     'T_COMMA',
     'T_ASSIGN',
     'T_BLOCK_START',
@@ -50,7 +49,6 @@ reserved = {
 tokens += reserved.values()
 
 t_T_STOP = r'\;'
-t_T_COLON = r'\:'
 t_T_COMMA = r'\,'
 t_T_ASSIGN = r'\='
 t_T_BLOCK_START = r'\{'
@@ -144,10 +142,18 @@ def p_param(p):
     '''
 
 def p_var_declare(p):
-    '''
-    var_declare : type var_ids
-    '''
+    'var_declare : type var_ids'
     type = p[1]
+    for id in p[2]:
+        if currentSymbolTable.lookup(id) == type:
+            print "Error de variable duplicada: ", type , " ", id
+            raise SyntaxError
+        else:
+            currentSymbolTable.insert(id, p[1])
+
+def p_var_declare_array(p):
+    'var_declare : type T_ARR_START T_ARR_END var_ids'
+    type = p[1] + '[]'
     for id in p[2]:
         if currentSymbolTable.lookup(id) == type:
             print "Error de variable duplicada: ", type , " ", id
@@ -192,7 +198,7 @@ def p_proc(p):
     proc : while
          | do_while
          | for
-         | asignacion
+         | assign
          | condition
          | write
          | var_declare
@@ -207,7 +213,7 @@ def p_while(p):
 def p_for(p):
     # for each item X in myArray { };
     '''
-    for : T_FOR T_EXP_START asignacion T_STOP expression T_STOP asignacion T_EXP_END block
+    for : T_FOR T_EXP_START assign T_STOP expression T_STOP assign T_EXP_END block
     '''
 
 def p_do_while(p):
@@ -216,40 +222,79 @@ def p_do_while(p):
     do_while : T_DO block T_WHILE T_EXP_START expression T_EXP_END
     '''
 
-def p_asignacion(p):
-    '''
-    asignacion : id T_ASSIGN value
-               | id T_ASSIGN T_ARR_START array T_ARR_END
-               | id T_ASSIGN T_ARR_START T_ARR_END
-    '''
-    if p[1][0] == "ARRAY":
-        print "Array assignment ", p[1][1]
-    else:
-        print "Variable assignment ", p[1][1]
+def p_assign_simple(p):
+    'assign : id T_ASSIGN value'
+    if p[1][0] != p[3]:
+        print 'Error semántico. La variable ', p[1][1], ' es de tipo ', p[1][0], ', pero se está intentando asignar un tipo ', p[3]
+        raise SyntaxError
+    #else:
+        # generar cuadruplo de asignacion
+
+def p_assign_array(p):
+    'assign : id T_ASSIGN T_ARR_START array T_ARR_END'
+    if p[1][0] != p[4] + '[]':
+        print 'Error semántico. La variable ', p[1][1], ' es de tipo ', p[1][0], ', pero se está intentando asignar un arreglo de tipo ', p[4]
+        raise SyntaxError
+    #else:
+        # generar cuadruplo de asignacion de arreglo
+
+def p_assign_array_empty(p):
+    'assign : id T_ASSIGN T_ARR_START T_ARR_END'
+    if not p[1][0].endswith('[]'):
+        print 'Error semántico. La variable ', p[1][1], ' debe ser de tipo arreglo'
+        raise SyntaxError
+    #else:
+        # generar cuadruplo de asignacion de arreglo
 
 def p_id_array(p):
     '''
     id : T_ID T_ARR_START e T_ARR_END
     '''
-    p[0] = ("ARRAY", p[1])
+    type = currentSymbolTable.lookup(p[1])
+    if type is None:
+        print 'Error semántico. No se declaro el arregló con ID ', p[1]
+        raise SyntaxError
+    elif not type.endswith('[]'):
+        print 'Error semántico. La variable ', p[1], ' debe ser de tipo arreglo'
+        raise SyntaxError
+    else:
+        p[0] = (type, p[1], 'ARRAY')
 
 def p_id(p):
     'id : T_ID'
-    p[0] = ("VAR", p[1])
+    type = currentSymbolTable.lookup(p[1])
+    if type is None:
+        print 'Error semántico. No se declaro la variable con ID ', p[1]
+        raise SyntaxError
+    else:
+        p[0] = (type, p[1], 'VAR')
 
 def p_array(p):
     '''
     array : value T_COMMA array
           | value
     '''
+    if len(p) == 4 and p[3] != p[1]:
+        print 'Error semántico. Los arreglos deben ser de un solo tipo.'
+        print 'No encaja ', p[1], ' con ', p[3]
+        raise SyntaxError
+    else:
+        p[0] = p[1]
 
-def p_value(p):
+def p_value_expression(p):
+    'value : expression'
+    p[0] = 'NUMBER'
+
+def p_value_string(p):
+    'value : T_STRING_CONST'
+    p[0] = 'STRING'
+
+def p_value_bool(p):
     '''
-    value : expression
-          | T_STRING_CONST
-          | T_TRUE
+    value : T_TRUE
           | T_FALSE
     '''
+    p[0] = 'BOOLEAN'
 
 def p_condition(p):
     '''
@@ -314,8 +359,13 @@ def p_factor(p):
            | T_OPARIT T_FLOAT_CONST
            | T_INT_CONST
            | T_FLOAT_CONST
-           | id
     '''
+
+def p_factor_id(p):
+    'factor : id'
+    if p[1][0].beginswith('CHAR') or p[1][0].beginswith('STRING'):
+        print 'Error semántico. La variable ', p[1][1], ' de tipo ', p[1][0], ' no puede ser usada en este contexto.'
+        raise SyntaxError
 
 def p_error(p):
     print 'Error de sintaxis!'
@@ -329,6 +379,7 @@ program MyProgram;
 function myFunc(int A, string B, boolean C)
 {
     int i;
+    int test;
     test = A + 2;
     print(test);
     while (C) {
