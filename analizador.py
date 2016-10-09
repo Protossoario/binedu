@@ -20,7 +20,12 @@ tokens = [
     'T_OPARIT',
     'T_OPFACT',
     'T_OPCOMP',
-    'T_OPREL'
+    'T_OPREL',
+    'T_INT_ARR',
+    'T_FLOAT_ARR',
+    'T_BOOLEAN_ARR',
+    'T_CHAR_ARR',
+    'T_STRING_ARR'
 ]
 
 reserved = {
@@ -59,13 +64,19 @@ t_T_EXP_END = r'\)'
 t_T_ARR_START = r'\['
 t_T_ARR_END = r'\]'
 
-t_T_FLOAT_CONST = r'[0-9]+\.[0-9]+f?'
-t_T_INT_CONST = r'[0-9]+'
+t_T_FLOAT_CONST = r'[+-]?[0-9]+\.[0-9]+f?'
+t_T_INT_CONST = r'[+-]?[0-9]+'
 t_T_STRING_CONST = r'\".*\"'
 t_T_OPARIT = r'[+-]'
 t_T_OPFACT = r'[*/]'
 t_T_OPCOMP = r'[><]|!=|=='
 t_T_OPREL = r'&&|\|\|'
+
+t_T_INT_ARR = r'int\[\]'
+t_T_FLOAT_ARR = r'float\[\]'
+t_T_CHAR_ARR = r'char\[\]'
+t_T_STRING_ARR = r'string\[\]'
+t_T_BOOLEAN_ARR = r'boolean\[\]'
 
 t_ignore = ' \t\n\r'
 
@@ -141,19 +152,19 @@ def p_param(p):
     param : type T_ID
     '''
 
-def p_var_declare(p):
-    'var_declare : type var_ids'
+def p_var_declare_arr(p):
+    'var_declare : type T_ARR_START T_ARR_END var_ids'
     type = p[1]
-    for id in p[2]:
+    for id in p[4]:
         if currentSymbolTable.lookup(id) == type:
             print "Error de variable duplicada: ", type , " ", id
             raise SyntaxError
         else:
-            currentSymbolTable.insert(id, p[1])
+            currentSymbolTable.insert(id, p[1] + '[]')
 
-def p_var_declare_array(p):
-    'var_declare : type T_ARR_START T_ARR_END var_ids'
-    type = p[1] + '[]'
+def p_var_declare(p):
+    'var_declare : type var_ids'
+    type = p[1]
     for id in p[2]:
         if currentSymbolTable.lookup(id) == type:
             print "Error de variable duplicada: ", type , " ", id
@@ -168,6 +179,11 @@ def p_type(p):
          | T_STRING
          | T_INT
          | T_FLOAT
+         | T_BOOLEAN_ARR
+         | T_CHAR_ARR
+         | T_STRING_ARR
+         | T_INT_ARR
+         | T_FLOAT_ARR
     '''
     p[0] = p[1].upper()
 
@@ -224,7 +240,9 @@ def p_do_while(p):
 
 def p_assign_simple(p):
     'assign : id T_ASSIGN value'
-    if p[1][0] != p[3]:
+    if p[1][0] == 'FLOAT' and p[3] == 'INT':
+        print 'Advertencia: casting de int a float implicito al asignar a la variable ', p[1][1]
+    elif p[1][0] != p[3]:
         print 'Error semántico. La variable ', p[1][1], ' es de tipo ', p[1][0], ', pero se está intentando asignar un tipo ', p[3]
         raise SyntaxError
     #else:
@@ -242,6 +260,7 @@ def p_assign_array_empty(p):
     'assign : id T_ASSIGN T_ARR_START T_ARR_END'
     if not p[1][0].endswith('[]'):
         print 'Error semántico. La variable ', p[1][1], ' debe ser de tipo arreglo'
+        print currentSymbolTable.symbols
         raise SyntaxError
     #else:
         # generar cuadruplo de asignacion de arreglo
@@ -265,6 +284,7 @@ def p_id(p):
     type = currentSymbolTable.lookup(p[1])
     if type is None:
         print 'Error semántico. No se declaro la variable con ID ', p[1]
+        print currentSymbolTable.symbols
         raise SyntaxError
     else:
         p[0] = (type, p[1], 'VAR')
@@ -283,18 +303,11 @@ def p_array(p):
 
 def p_value_expression(p):
     'value : expression'
-    p[0] = 'NUMBER'
+    p[0] = p[1]
 
 def p_value_string(p):
     'value : T_STRING_CONST'
     p[0] = 'STRING'
-
-def p_value_bool(p):
-    '''
-    value : T_TRUE
-          | T_FALSE
-    '''
-    p[0] = 'BOOLEAN'
 
 def p_condition(p):
     '''
@@ -320,52 +333,86 @@ def p_write(p):
 def p_concat(p):
     '''
     concat : T_STRING_CONST T_CONCAT concat
-                  | expression T_CONCAT concat
-                  | T_STRING_CONST
-                  | expression
+           | expression T_CONCAT concat
+           | T_STRING_CONST
+           | expression
     '''
 
-def p_expression(p):
+def p_expression_op(p):
     # Expresiones && y ||
-    '''
-    expression : exp T_OPREL expression
-               | exp
-    '''
+    'expression : exp T_OPREL expression'
+    p[0] = 'BOOLEAN'
+
+def p_expresion(p):
+    'expression : exp'
+    p[0] = p[1]
+
+def p_exp_op(p):
+    # Expresiones de comparacion (<, >, !=, ==)
+    'exp : e T_OPCOMP exp'
+    p[0] = 'BOOLEAN'
 
 def p_exp(p):
-    # Expresiones de comparacion (<, >, !=, ==)
-    '''
-    exp : e T_OPCOMP exp
-        | e
-    '''
+    'exp : e'
+    p[0] = p[1]
+
+def p_e_op(p):
+    'e : term T_OPARIT e'
+    if p[1] == 'FLOAT' or p[3] == 'FLOAT':
+        p[0] = 'FLOAT'
+    else:
+        p[0] = p[3]
 
 def p_e(p):
-    # Expresion aritmeticas
-    '''
-    e : term T_OPARIT e
-      | term
-    '''
+    'e : term'
+    p[0] = p[1]
+
+def p_term_op(p):
+    'term : factor T_OPFACT term'
+    if (p[1] != 'INT' and p[1] != 'FLOAT') or (p[3] != 'INT' and p[3] != 'FLOAT'):
+        print 'Error semántico. Los factores aritméticos deben ser de tipo int o float.'
+        raise SyntaxError
+    elif p[1] == 'FLOAT' or p[3] == 'FLOAT':
+        p[0] = 'FLOAT'
+    else:
+        p[0] = p[3]
 
 def p_term(p):
-    '''
-    term : factor T_OPFACT term
-            | factor
-    '''
+    'term : factor'
+    p[0] = p[1]
 
 def p_factor(p):
+    'factor : T_EXP_START expression T_EXP_END'
+    p[0] = p[2]
+
+def p_factor_int(p):
+    'factor : T_INT_CONST'
+    p[0] = 'INT'
+
+def p_factor_float(p):
+    'factor : T_FLOAT_CONST'
+    p[0] = 'FLOAT'
+
+def p_factor_boolean(p):
     '''
-    factor : T_EXP_START expression T_EXP_END
-           | T_OPARIT T_INT_CONST
-           | T_OPARIT T_FLOAT_CONST
-           | T_INT_CONST
-           | T_FLOAT_CONST
+    factor : T_TRUE
+           | T_FALSE
     '''
+    p[0] = 'BOOLEAN'
 
 def p_factor_id(p):
     'factor : id'
-    if p[1][0].beginswith('CHAR') or p[1][0].beginswith('STRING'):
+    if p[1][0] == 'INT[]':
+        p[0] = 'INT'
+    elif p[1][0] == 'FLOAT[]':
+        p[0] = 'FLOAT'
+    elif p[1][0] == 'BOOLEAN[]':
+        p[0] = 'BOOLEAN'
+    elif p[1][0].startswith('CHAR') or p[1][0].startswith('STRING'):
         print 'Error semántico. La variable ', p[1][1], ' de tipo ', p[1][0], ' no puede ser usada en este contexto.'
         raise SyntaxError
+    else:
+        p[0] = p[1][0]
 
 def p_error(p):
     print 'Error de sintaxis!'
@@ -376,33 +423,27 @@ parser = yacc.yacc()
 data = '''
 program MyProgram;
 
-function myFunc(int A, string B, boolean C)
-{
-    int i;
-    int test;
-    test = A + 2;
-    print(test);
-    while (C) {
-        myArray[0] = myArray[1] + 2;
-    };
-    myArray = [ 3, 4, "test" ];
-    for (i = 0; i < A; i = i + 1) {
-        print(i);
-    };
-    A = myArray[0] + 1;
+function myFunction() {
+    float myFloat;
+    myFloat = 1;
+    do {
+        print(myFloat);
+        myFloat = myFloat + 1;
+    } while (myFloat < 10);
 }
 
 main
 {
+    int[] x;
     float X;
     float Y;
     int A, B;
     print("Hello");
-    x=[];
+    x = [];
     B = 7;
     A = B;
     X = 9;
-    Y = A[3 / 1];
+    Y = x[3 / 1];
 
     print(X);
 
