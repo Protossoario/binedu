@@ -15,69 +15,69 @@ tokens = [
     'T_ARR_START',
     'T_ARR_END',
     'T_ID',
-    'T_FLOAT',
-    'T_INT',
-    'T_STRING',
-    'OPARIT',
-    'OPFACT',
-    'OPCOMP',
-    'OPREL'
+    'T_FLOAT_CONST',
+    'T_INT_CONST',
+    'T_STRING_CONST',
+    'T_OPARIT',
+    'T_OPFACT',
+    'T_OPCOMP',
+    'T_OPREL'
 ]
 
 reserved = {
-    'if': 'IF',
-    'else': 'ELSE',
-    'var': 'VAR',
-    'program': 'PROGRAM',
-    'int': 'INT',
-    'float': 'FLOAT',
-    'string': 'STRING',
-    'char': 'CHAR',
-    'boolean': 'BOOLEAN',
-    'print': 'PRINT',
-    'for': 'FOR',
-    'function': 'FUNCTION',
-    'print': 'PRINT',
-    'graph': 'GRAPH',
-    'load': 'LOAD',
-    'input': 'INPUT',
-    'while': 'WHILE',
-    'do': 'DO',
-    'true': 'TRUE',
-    'false': 'FALSE'
+    'if': 'T_IF',
+    'else': 'T_ELSE',
+    'program': 'T_PROGRAM',
+    'int': 'T_INT',
+    'float': 'T_FLOAT',
+    'string': 'T_STRING',
+    'char': 'T_CHAR',
+    'boolean': 'T_BOOLEAN',
+    'print': 'T_PRINT',
+    'for': 'T_FOR',
+    'function': 'T_FUNCTION',
+    'print': 'T_PRINT',
+    'graph': 'T_GRAPH',
+    'load': 'T_LOAD',
+    'input': 'T_INPUT',
+    'while': 'T_WHILE',
+    'do': 'T_DO',
+    'true': 'T_TRUE',
+    'false': 'T_FALSE',
+    'main': 'T_MAIN'
 }
 
 tokens += reserved.values()
 
-T_STOP = r'\;'
-T_COLON = r'\:'
-T_COMMA = r'\,'
-T_ASSIGN = r'\='
-T_BLOCK_START = r'\{'
-T_BLOCK_END = r'\}'
-T_CONCAT = r'\.'
-T_EXP_START = r'\('
-T_EXP_END = r'\)'
-T_ARR_START = r'\['
-T_ARR_END = r'\]'
+t_T_STOP = r'\;'
+t_T_COLON = r'\:'
+t_T_COMMA = r'\,'
+t_T_ASSIGN = r'\='
+t_T_BLOCK_START = r'\{'
+t_T_BLOCK_END = r'\}'
+t_T_CONCAT = r'\.'
+t_T_EXP_START = r'\('
+t_T_EXP_END = r'\)'
+t_T_ARR_START = r'\['
+t_T_ARR_END = r'\]'
 
-T_FLOAT = r'[0-9]+\.[0-9]+f?'
-T_INT = r'[0-9]+'
-T_STRING = r'\".*\"'
-OPARIT = r'[+-]'
-OPFACT = r'[*/]'
-OPCOMP = r'[><]|!=|=='
-OPREL = r'&&|\|\|'
+t_T_FLOAT_CONST = r'[0-9]+\.[0-9]+f?'
+t_T_INT_CONST = r'[0-9]+'
+t_T_STRING_CONST = r'\".*\"'
+t_T_OPARIT = r'[+-]'
+t_T_OPFACT = r'[*/]'
+t_T_OPCOMP = r'[><]|!=|=='
+t_T_OPREL = r'&&|\|\|'
 
-ignore = ' \t\n\r'
+t_ignore = ' \t\n\r'
 
-def T_ID(t):
+def t_T_ID(t):
     r'[a-zA-Z][a-zA-Z0-9_]*'
     if t.value in reserved:
         t.type = reserved[t.value]
     return t
 
-def error(t):
+def t_error(t):
     print("Illegal character '%s'" % t.value[0])
     t.lexer.skip(1)
 
@@ -107,17 +107,11 @@ currentSymbolTable = SymbolTable()
 
 def p_programa(p):
     '''
-    programa : PROGRAM T_ID T_STOP prog block
+    programa : T_PROGRAM T_ID T_STOP functions T_MAIN block
+             | T_PROGRAM T_ID T_STOP T_MAIN block
     '''
     print('Program syntax parsed correctly')
     print "Global scope symbols: ", currentSymbolTable.symbols
-
-def p_prog(p):
-    '''
-    prog : vars prog
-         | functions prog
-         |
-    '''
 
 def p_functions(p):
     '''
@@ -127,10 +121,8 @@ def p_functions(p):
 
 def p_func(p):
     '''
-    func : FUNCTION T_ID T_EXP_START parameters T_EXP_END vars block
-         | FUNCTION T_ID T_EXP_START parameters T_EXP_END block
-         | FUNCTION T_ID T_EXP_START T_EXP_END vars block
-         | FUNCTION T_ID T_EXP_START T_EXP_END block
+    func : T_FUNCTION T_ID T_EXP_START parameters T_EXP_END block
+         | T_FUNCTION T_ID T_EXP_START T_EXP_END block
     '''
     type = 'FUNCTION'
     id = p[2]
@@ -151,10 +143,9 @@ def p_param(p):
     param : type T_ID
     '''
 
-def p_vars(p):
+def p_var_declare(p):
     '''
-    vars : type var_ids STOP vars
-         | type var_ids STOP
+    var_declare : type var_ids
     '''
     type = p[1]
     for id in p[2]:
@@ -166,11 +157,11 @@ def p_vars(p):
 
 def p_type(p):
     '''
-    type : BOOLEAN
-         | CHAR
-         | STRING
-         | INT
-         | FLOAT
+    type : T_BOOLEAN
+         | T_CHAR
+         | T_STRING
+         | T_INT
+         | T_FLOAT
     '''
     p[0] = p[1].upper()
 
@@ -192,9 +183,8 @@ def p_block(p):
 
 def p_process(p):
     '''
-    process : proc process
-            | proc
-            |
+    process : proc T_STOP process
+            | proc T_STOP
     '''
 
 def p_proc(p):
@@ -205,37 +195,32 @@ def p_proc(p):
          | asignacion
          | condition
          | write
+         | var_declare
     '''
 
 def p_while(p):
     # while (expresion) { };
     '''
-    while : WHILE T_EXP_START expresion T_EXP_END block
+    while : T_WHILE T_EXP_START expression T_EXP_END block
     '''
 
 def p_for(p):
     # for each item X in myArray { };
     '''
-    for : FOR T_EXP_START asignacion T_STOP expresion T_STOP asignacion T_EXP_END block
-        | FOR T_EXP_START the_var T_STOP expresion T_STOP asignacion T_EXP_END block
-    '''
-
-def p_the_var(p):
-    '''
-    the_var : VAR T_ID T_COLON type
+    for : T_FOR T_EXP_START asignacion T_STOP expression T_STOP asignacion T_EXP_END block
     '''
 
 def p_do_while(p):
-    # do { } while (expresion);
+    # do { } while ();
     '''
-    do_while : DO block WHILE T_EXP_START expresion T_EXP_END T_STOP
+    do_while : T_DO block T_WHILE T_EXP_START expression T_EXP_END
     '''
 
 def p_asignacion(p):
     '''
-    asignacion : id T_ASSIGN value T_STOP
-               | id T_ASSIGN T_ARR_START array T_ARR_END T_STOP
-               | id T_ARR_START expresion T_ARR_END T_STOP
+    asignacion : id T_ASSIGN value
+               | id T_ASSIGN T_ARR_START array T_ARR_END
+               | id T_ASSIGN T_ARR_START T_ARR_END
     '''
     if p[1][0] == "ARRAY":
         print "Array assignment ", p[1][1]
@@ -260,76 +245,75 @@ def p_array(p):
 
 def p_value(p):
     '''
-    value : expresion
-          | T_STRING
-          | TRUE
-          | FALSE
+    value : expression
+          | T_STRING_CONST
+          | T_TRUE
+          | T_FALSE
     '''
 
 def p_condition(p):
     '''
-    condition : IF T_EXP_START expresion T_EXP_END block else_if else
-              | IF T_EXP_START expresion T_EXP_END block else_if
-              | IF T_EXP_START expresion T_EXP_END block else
-              | IF T_EXP_START expresion T_EXP_END block
+    condition : T_IF T_EXP_START expression T_EXP_END block else_if else
+              | T_IF T_EXP_START expression T_EXP_END block else_if
+              | T_IF T_EXP_START expression T_EXP_END block else
+              | T_IF T_EXP_START expression T_EXP_END block
     '''
 
 def p_else_if(p):
     '''
-    else_if : ELSE IF T_EXP_START expresion T_EXP_END block else_if
-            | ELSE IF T_EXP_START expresion T_EXP_END block
+    else_if : T_ELSE T_IF T_EXP_START expression T_EXP_END block
     '''
 
 def p_else(p):
     '''
-    else : ELSE block
+    else : T_ELSE block
     '''
 
 def p_write(p):
-    'write : PRINT T_EXP_START concatenacion T_EXP_END'
+    'write : T_PRINT T_EXP_START concat T_EXP_END'
 
-def p_concatenacion(p):
+def p_concat(p):
     '''
-    concatenacion : T_STRING T_CONCAT concatenacion
-                  | expresion T_CONCAT concatenacion
-                  | T_STRING
-                  | expresion
+    concat : T_STRING_CONST T_CONCAT concat
+                  | expression T_CONCAT concat
+                  | T_STRING_CONST
+                  | expression
     '''
 
-def p_expresion(p):
+def p_expression(p):
     # Expresiones && y ||
     '''
-    expresion : exp OPREL exp
-              | exp
+    expression : exp T_OPREL expression
+               | exp
     '''
 
 def p_exp(p):
     # Expresiones de comparacion (<, >, !=, ==)
     '''
-    exp : e OPCOMP exp
+    exp : e T_OPCOMP exp
         | e
     '''
 
 def p_e(p):
     # Expresion aritmeticas
     '''
-    e : termino OPARIT e
-      | termino
+    e : term T_OPARIT e
+      | term
     '''
 
-def p_termino(p):
+def p_term(p):
     '''
-    termino : factor OPFACT termino
+    term : factor T_OPFACT term
             | factor
     '''
 
 def p_factor(p):
     '''
-    factor : T_EXP_START expresion T_EXP_END
-           | OPARIT T_INT
-           | OPARIT T_FLOAT
-           | T_INT CONST
-           | T_FLOAT
+    factor : T_EXP_START expression T_EXP_END
+           | T_OPARIT T_INT_CONST
+           | T_OPARIT T_FLOAT_CONST
+           | T_INT_CONST
+           | T_FLOAT_CONST
            | id
     '''
 
@@ -343,8 +327,8 @@ data = '''
 program MyProgram;
 
 function myFunc(int A, string B, boolean C)
-    int i;
 {
+    int i;
     test = A + 2;
     print(test);
     while (C) {
@@ -357,12 +341,13 @@ function myFunc(int A, string B, boolean C)
     A = myArray[0] + 1;
 }
 
-float X;
-float Y;
-int A, B;
+main
 {
+    float X;
+    float Y;
+    int A, B;
     print("Hello");
-x=[];
+    x=[];
     B = 7;
     A = B;
     X = 9;
