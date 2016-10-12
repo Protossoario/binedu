@@ -114,13 +114,31 @@ class SymbolTable:
 
 currentSymbolTable = SymbolTable()
 
+class QuadrupleList:
+    def __init__(self):
+        self.quadruples = list()
+        self.tempCounter = 0
+
+    def insertOperation(self, op, arg1, arg2):
+        tempID = 't' + str(self.tempCounter)
+        self.tempCounter += 1
+        self.quadruples.append((op, arg1, arg2, tempID))
+        return tempID
+
+    def printQuadruples(self):
+        for quad in self.quadruples:
+            print('%s, %s, %s, %s\n' % (quad[0], quad[1], quad[2], quad[3]))
+
+quadList = QuadrupleList()
+
 def p_programa(p):
     '''
     programa : T_PROGRAM T_ID T_STOP functions T_MAIN block
              | T_PROGRAM T_ID T_STOP T_MAIN block
     '''
     print('Program syntax parsed correctly')
-    print "Global scope symbols: ", currentSymbolTable.symbols
+    print 'Global scope symbols:\n', currentSymbolTable.symbols
+    print 'Quadruples:\n', quadList.printQuadruples()
 
 def p_functions(p):
     '''
@@ -240,26 +258,29 @@ def p_do_while(p):
 
 def p_assign_simple(p):
     'assign : id T_ASSIGN value'
-    if p[1][0] == 'FLOAT' and p[3] == 'INT':
+    id, value = p[1], p[3]
+    if id[0] == 'FLOAT' and value['type'] == 'INT':
         print 'Advertencia: casting de int a float implicito al asignar a la variable ', p[1][1]
-    elif p[1][0] != p[3]:
-        print 'Error semántico. La variable ', p[1][1], ' es de tipo ', p[1][0], ', pero se está intentando asignar un tipo ', p[3]
+    elif id[0] != value['type']:
+        print 'Error semántico. La variable ', id[1], ' es de tipo ', id[0], ', pero se está intentando asignar un tipo ', value['type']
         raise SyntaxError
     #else:
         # generar cuadruplo de asignacion
 
 def p_assign_array(p):
     'assign : id T_ASSIGN T_ARR_START array T_ARR_END'
-    if p[1][0] != p[4] + '[]':
-        print 'Error semántico. La variable ', p[1][1], ' es de tipo ', p[1][0], ', pero se está intentando asignar un arreglo de tipo ', p[4]
+    id, array = p[1], p[4]
+    if id[0] != array['type'] + '[]':
+        print 'Error semántico. La variable ', id[1], ' es de tipo ', id[0], ', pero se está intentando asignar un arreglo de tipo ', array['type']
         raise SyntaxError
     #else:
         # generar cuadruplo de asignacion de arreglo
 
 def p_assign_array_empty(p):
     'assign : id T_ASSIGN T_ARR_START T_ARR_END'
-    if not p[1][0].endswith('[]'):
-        print 'Error semántico. La variable ', p[1][1], ' debe ser de tipo arreglo'
+    id = p[1]
+    if not id[0].endswith('[]'):
+        print 'Error semántico. La variable ', id[1], ' debe ser de tipo arreglo'
         print currentSymbolTable.symbols
         raise SyntaxError
     #else:
@@ -290,16 +311,17 @@ def p_id(p):
         p[0] = (type, p[1], 'VAR')
 
 def p_array(p):
-    '''
-    array : value T_COMMA array
-          | value
-    '''
-    if len(p) == 4 and p[3] != p[1]:
+    'array : value T_COMMA array'
+    value, array = p[1], p[3]
+    if value['type'] != array['type']:
         print 'Error semántico. Los arreglos deben ser de un solo tipo.'
-        print 'No encaja ', p[1], ' con ', p[3]
+        print 'Tipos que no encajan: ', value['type'], ' -> ', array['type']
         raise SyntaxError
-    else:
-        p[0] = p[1]
+    p[0] = value
+
+def p_array_value(p):
+    'array : value'
+    p[0] = p[1]
 
 def p_value_expression(p):
     'value : expression'
@@ -307,7 +329,7 @@ def p_value_expression(p):
 
 def p_value_string(p):
     'value : T_STRING_CONST'
-    p[0] = 'STRING'
+    p[0] = { 'type': 'STRING', 'id': p[1] }
 
 def p_condition(p):
     '''
@@ -341,7 +363,9 @@ def p_concat(p):
 def p_expression_op(p):
     # Expresiones && y ||
     'expression : exp T_OPREL expression'
-    p[0] = 'BOOLEAN'
+    exp, op, expression = p[1], p[2], p[3]
+    tempID = quadList.insertOperation(op, exp['id'], expression['id'])
+    p[0] = { 'type': 'BOOLEAN', 'id': tempID }
 
 def p_expresion(p):
     'expression : exp'
@@ -350,7 +374,9 @@ def p_expresion(p):
 def p_exp_op(p):
     # Expresiones de comparacion (<, >, !=, ==)
     'exp : e T_OPCOMP exp'
-    p[0] = 'BOOLEAN'
+    e, op, exp = p[1], p[2], p[3]
+    tempID = quadList.insertOperation(op, e['id'], exp['id'])
+    p[0] = { 'type': 'BOOLEAN', 'id': tempID }
 
 def p_exp(p):
     'exp : e'
@@ -358,10 +384,13 @@ def p_exp(p):
 
 def p_e_op(p):
     'e : term T_OPARIT e'
-    if p[1] == 'FLOAT' or p[3] == 'FLOAT':
-        p[0] = 'FLOAT'
+    term, op, e = p[1], p[2], p[3]
+    if term['type'] == 'FLOAT' or e['type'] == 'FLOAT':
+        type = 'FLOAT'
     else:
-        p[0] = p[3]
+        type = e['type']
+    tempID = quadList.insertOperation(op, term['id'], e['id'])
+    p[0] = { 'type': type, 'id': tempID }
 
 def p_e(p):
     'e : term'
@@ -369,13 +398,16 @@ def p_e(p):
 
 def p_term_op(p):
     'term : factor T_OPFACT term'
-    if (p[1] != 'INT' and p[1] != 'FLOAT') or (p[3] != 'INT' and p[3] != 'FLOAT'):
+    factor, op, term = p[1], p[2], p[3]
+    if (factor['type'] != 'INT' and factor['type'] != 'FLOAT') or (term['type'] != 'INT' and term['type'] != 'FLOAT'):
         print 'Error semántico. Los factores aritméticos deben ser de tipo int o float.'
         raise SyntaxError
-    elif p[1] == 'FLOAT' or p[3] == 'FLOAT':
-        p[0] = 'FLOAT'
+    elif factor['type'] == 'FLOAT' or term['type'] == 'FLOAT':
+        type = 'FLOAT'
     else:
-        p[0] = p[3]
+        type = term['type']
+    tempID = quadList.insertOperation(op, factor['id'], term['id'])
+    p[0] = { 'type': type, 'id': tempID }
 
 def p_term(p):
     'term : factor'
@@ -387,32 +419,32 @@ def p_factor(p):
 
 def p_factor_int(p):
     'factor : T_INT_CONST'
-    p[0] = 'INT'
+    p[0] = { 'type': 'INT', 'id': p[1] }
 
 def p_factor_float(p):
     'factor : T_FLOAT_CONST'
-    p[0] = 'FLOAT'
+    p[0] = { 'type': 'FLOAT', 'id': p[1] }
 
 def p_factor_boolean(p):
     '''
     factor : T_TRUE
            | T_FALSE
     '''
-    p[0] = 'BOOLEAN'
+    p[0] = { 'type': 'BOOLEAN', 'id': p[1] }
 
 def p_factor_id(p):
     'factor : id'
     if p[1][0] == 'INT[]':
-        p[0] = 'INT'
+        p[0] = { 'type': 'INT', 'id': p[1][1] }
     elif p[1][0] == 'FLOAT[]':
-        p[0] = 'FLOAT'
+        p[0] = { 'type': 'FLOAT', 'id': p[1][1] }
     elif p[1][0] == 'BOOLEAN[]':
-        p[0] = 'BOOLEAN'
+        p[0] = { 'type': 'BOOLEAN', 'id': p[1][1] }
     elif p[1][0].startswith('CHAR') or p[1][0].startswith('STRING'):
         print 'Error semántico. La variable ', p[1][1], ' de tipo ', p[1][0], ' no puede ser usada en este contexto.'
         raise SyntaxError
     else:
-        p[0] = p[1][0]
+        p[0] = { 'type': p[1][0], 'id': p[1][1] }
 
 def p_error(p):
     print 'Error de sintaxis!'
@@ -420,47 +452,11 @@ def p_error(p):
 
 parser = yacc.yacc()
 
-data = '''
-program MyProgram;
+import sys
+if len(sys.argv) < 2:
+    file_name = raw_input('Nombre del archivo de entrada: ')
+else:
+    file_name = sys.argv[1]
 
-function myFunction() {
-    float myFloat;
-    myFloat = 1;
-    do {
-        print(myFloat);
-        myFloat = myFloat + 1;
-    } while (myFloat < 10);
-}
-
-main
-{
-    int[] x;
-    float X;
-    float Y;
-    int A, B;
-    print("Hello");
-    x = [];
-    B = 7;
-    A = B;
-    X = 9;
-    Y = x[3 / 1];
-
-    print(X);
-
-    if (A < B && 1 < 2) {
-        print("Oops!");
-    };
-
-    if (X > Y) {
-        print("Value of X = " . X);
-    }
-    else {
-        Y = 2 + 2 * X;
-    };
-}
-'''
-
-lexer.input(data)
-
-result = parser.parse(lexer=lexer)
-print(result)
+with open(file_name) as file_obj:
+    parser.parse(file_obj.read())

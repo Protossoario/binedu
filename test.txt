@@ -1,0 +1,37 @@
+program MyProgram;
+
+function myFunction() {
+    float myFloat;
+    myFloat = 1;
+    do {
+        print(myFloat);
+        myFloat = myFloat + 1;
+    } while (myFloat < 10);
+}
+
+main
+{
+    int[] x;
+    float X;
+    float Y;
+    int A, B;
+    print("Hello");
+    x = [];
+    B = 7;
+    A = B;
+    X = 9;
+    Y = x[3 / 1];
+
+    print(X);
+
+    if (A < B && 1 < 2) {
+        print("Oops!");
+    };
+
+    if (X > Y) {
+        print("Value of X = " . X);
+    }
+    else {
+        Y = 2 + 2 * X;
+    };
+}
