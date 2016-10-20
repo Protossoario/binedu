@@ -26,6 +26,8 @@ main
 
     if (A < B && 1 < 2) {
         print("Oops!");
+        int prueba;
+        prueba = 2 + 2;
     };
 
     if (X > Y) {

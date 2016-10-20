@@ -128,9 +128,20 @@ class QuadrupleList:
     def insertAssign(self, val, dest):
         self.quadruples.append(('=', val, None, dest))
 
+    def insertJump(self):
+        # genera cuadruplo vacio para despues actualizarlo con la informacion que necesita
+        self.quadruples.append(('GotoF', None, None, None))
+        return len(self.quadruples) - 1
+
+    def updateJump(self, index, expression):
+        jump = (self.quadruples[index][0], expression, None, len(self.quadruples))
+        self.quadruples[index] = jump
+
     def printQuadruples(self):
+        index = 0
         for quad in self.quadruples:
-            print('%s, %s, %s, %s\n' % (quad[0], quad[1], quad[2], quad[3]))
+            print('#%d, %s, %s, %s, %s\n' % (index, quad[0], quad[1], quad[2], quad[3]))
+            index += 1
 
 quadList = QuadrupleList()
 
@@ -241,6 +252,34 @@ def p_proc(p):
          | var_declare
     '''
 
+def p_condition(p):
+    '''
+    condition : T_IF T_EXP_START expression exp_end block else_if else
+              | T_IF T_EXP_START expression exp_end block else_if
+              | T_IF T_EXP_START expression exp_end block else
+              | T_IF T_EXP_START expression exp_end block
+    '''
+    expression, exp_end = p[3], p[4]
+    quadList.updateJump(exp_end, expression['id'])
+
+
+def p_exp_end(p):
+    '''
+    exp_end : T_EXP_END
+    '''
+    # generar un cuadruplo de 'GotoF', y regresa el indice del cuadruplo
+    p[0] = quadList.insertJump()
+
+def p_else_if(p):
+    '''
+    else_if : T_ELSE T_IF T_EXP_START expression T_EXP_END block
+    '''
+
+def p_else(p):
+    '''
+    else : T_ELSE block
+    '''
+
 def p_while(p):
     # while (expresion) { };
     '''
@@ -334,29 +373,6 @@ def p_value_expression(p):
 def p_value_string(p):
     'value : T_STRING_CONST'
     p[0] = { 'type': 'STRING', 'id': p[1] }
-
-def p_condition(p):
-    '''
-    condition : T_IF T_EXP_START expression exp_end block else_if else
-              | T_IF T_EXP_START expression T_EXP_END block else_if
-              | T_IF T_EXP_START expression T_EXP_END block else
-              | T_IF T_EXP_START expression T_EXP_END block
-    '''
-
-def p_exp_end(p):
-    '''
-    exp_end : T_EXP_END
-    '''
-
-def p_else_if(p):
-    '''
-    else_if : T_ELSE T_IF T_EXP_START expression T_EXP_END block
-    '''
-
-def p_else(p):
-    '''
-    else : T_ELSE block
-    '''
 
 def p_write(p):
     'write : T_PRINT T_EXP_START concat T_EXP_END'
