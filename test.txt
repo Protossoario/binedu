@@ -32,6 +32,8 @@ main
 
     if (X > Y) {
         print("Value of X = " . X);
+        int hola;
+        hola = 10;
     }
     else {
         Y = 2 + 2 * X;
