@@ -264,6 +264,7 @@ def p_assign_simple(p):
     id, value = p[1], p[3]
     if id[0] == 'FLOAT' and value['type'] == 'INT':
         print 'Advertencia: casting de int a float implicito al asignar a la variable ', p[1][1]
+        quadList.insertAssign(value['id'], id[1])
     elif id[0] != value['type']:
         print 'Error semántico. La variable ', id[1], ' es de tipo ', id[0], ', pero se está intentando asignar un tipo ', value['type']
         raise SyntaxError
