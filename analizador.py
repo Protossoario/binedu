@@ -125,6 +125,9 @@ class QuadrupleList:
         self.quadruples.append((op, arg1, arg2, tempID))
         return tempID
 
+    def insertAssign(self, val, dest):
+        self.quadruples.append(('=', val, None, dest))
+
     def printQuadruples(self):
         for quad in self.quadruples:
             print('%s, %s, %s, %s\n' % (quad[0], quad[1], quad[2], quad[3]))
@@ -264,8 +267,8 @@ def p_assign_simple(p):
     elif id[0] != value['type']:
         print 'Error semántico. La variable ', id[1], ' es de tipo ', id[0], ', pero se está intentando asignar un tipo ', value['type']
         raise SyntaxError
-    #else:
-        # generar cuadruplo de asignacion
+    else:
+        quadList.insertAssign(value['id'], id[1])
 
 def p_assign_array(p):
     'assign : id T_ASSIGN T_ARR_START array T_ARR_END'
@@ -333,10 +336,15 @@ def p_value_string(p):
 
 def p_condition(p):
     '''
-    condition : T_IF T_EXP_START expression T_EXP_END block else_if else
+    condition : T_IF T_EXP_START expression exp_end block else_if else
               | T_IF T_EXP_START expression T_EXP_END block else_if
               | T_IF T_EXP_START expression T_EXP_END block else
               | T_IF T_EXP_START expression T_EXP_END block
+    '''
+
+def p_exp_end(p):
+    '''
+    exp_end : T_EXP_END
     '''
 
 def p_else_if(p):
