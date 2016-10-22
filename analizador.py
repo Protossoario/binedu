@@ -145,7 +145,7 @@ class QuadrupleList:
     def printQuadruples(self):
         index = 0
         for quad in self.quadruples:
-            print('#%d, %s, %s, %s, %s\n' % (index, quad[0], quad[1], quad[2], quad[3]))
+            print('#%d| %s, %s, %s, %s' % (index, quad[0], quad[1], quad[2], quad[3]))
             index += 1
 
 quadList = QuadrupleList()
