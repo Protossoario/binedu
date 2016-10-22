@@ -122,9 +122,6 @@ class QuadrupleList:
         self.quadruples.append((op, arg1, arg2, tempID))
         return tempID
 
-    def insertFunction(self):
-        self.quadruples.append((None, None, None, None))
-
     def insertAssign(self, val, dest):
         self.quadruples.append(('=', val, None, dest))
 
@@ -140,6 +137,9 @@ class QuadrupleList:
 
     def getListSize(self):
         return len(self.quadruples)
+
+    def moveQuadRangeToEnd(self, begin, end):
+        self.quadruples = self.quadruples[:begin] + self.quadruples[end:] + self.quadruples[begin:end]
 
     def printQuadruples(self):
         index = 0
@@ -193,7 +193,6 @@ def p_func_token(p):
     '''
     func_token : T_FUNCTION
     '''
-    quadList.insertFunction()
 
 def p_parameters(p):
     '''
@@ -342,6 +341,24 @@ def p_while(p):
 def p_while_token(p):
     'while_token : T_WHILE'
     p[0] = quadList.getListSize()
+
+def p_for(p):
+    # for each item X in myArray { };
+    '''
+    for : T_FOR T_EXP_START assign first_stop expression second_stop assign T_EXP_END block
+    '''
+    first_stop, expression, second_stop, block = p[4], p[5], p[6], p[9]
+    quadList.moveQuadRangeToEnd(second_stop + 1, block['start'])
+    quadList.insertJump('Goto', first_stop)
+    quadList.updateJump(second_stop, expression['id'])
+
+def p_first_stop(p):
+    'first_stop : T_STOP'
+    p[0] = quadList.getListSize()
+
+def p_second_stop(p):
+    'second_stop : T_STOP'
+    p[0] = quadList.insertJump('GotoF')
 
 def p_do_while(p):
     # do { } while ();

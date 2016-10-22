@@ -1,12 +1,26 @@
 program MyProgram;
 
 function myFunction() {
-  float myFloat;
-  myFloat = 1;
-  do {
-      print(myFloat);
-      myFloat = myFloat + 1;
-  } while (myFloat < 10);
+    float myFloat;
+    myFloat = 1;
+    do {
+        print(myFloat);
+        myFloat = myFloat + 1;
+    } while (myFloat < 10);
+
+    int i;
+    for (i = 0; i < 10; i = i + 1) {
+        print(i);
+    };
+}
+
+function myFunc2() {
+  int meep;
+  int meep2;
+  int result;
+  meep = 50;
+  meep2 = 4;
+  result = meep * meep2;
 }
 
 main
