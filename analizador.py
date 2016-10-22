@@ -101,13 +101,25 @@ class SymbolTable:
         self.symbols[id] = type
 
     def lookup(self, id):
-        return self.symbols.get(id)
+        result = self.symbols.get(id)
+        if not result is None or self.parent is None:
+            return result
+        return self.parent.lookup(id)
 
     def addChild(self, child):
         self.children.append(child)
 
     def setParent(self, parent):
         self.parent = parent
+
+    def __str__(self):
+        result = ''
+        for key, value in self.symbols.iteritems():
+            result += '| %10s | %8s |\n' % (key, value)
+        for child in self.children:
+            result += ' =>'
+            result += '\t%s' % (child)
+        return result
 
 currentSymbolTable = SymbolTable()
 
@@ -156,7 +168,7 @@ def p_programa(p):
     '''
     quadList.insertJump('end')
     print('Program syntax parsed correctly')
-    print 'Global scope symbols:\n', currentSymbolTable.symbols
+    print 'Global scope symbols:\n', currentSymbolTable
     print 'Quadruples:\n', quadList.printQuadruples()
 
 def p_prog_token(p):
@@ -261,19 +273,28 @@ def p_block(p):
     '''
     block : block_start process block_end
     '''
-    p[0] = {'start':p[1], 'end':p[3]}
+    p[0] = { 'start' : p[1], 'end' : p[3] }
 
 def p_block_start(p):
     '''
     block_start : T_BLOCK_START
     '''
     p[0] = quadList.getListSize()
+    # crear nuevo scope local dentro del bloque
+    global currentSymbolTable
+    newScope = SymbolTable()
+    currentSymbolTable.addChild(newScope)
+    newScope.setParent(currentSymbolTable)
+    currentSymbolTable = newScope
 
 def p_block_end(p):
     '''
     block_end : T_BLOCK_END
     '''
     p[0] = quadList.getListSize()
+    # cambiar al scope del bloque de afuera
+    global currentSymbolTable
+    currentSymbolTable = currentSymbolTable.parent
 
 def p_call_func(p):
     '''

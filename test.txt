@@ -45,7 +45,7 @@ main
   do {
     int Q;
     Q = P + 1;
-  } while (Q < 40);
+  } while (P < 40);
 
   while (X > 3) {
       print(X);
@@ -66,10 +66,9 @@ main
   else {
     Y = 2 + 2 * X;
   };
-
+  int lol;
   if (X > Y) {
     print("Value of Y = " . Y);
-    int lol;
     lol = 10;
   }
   else if (lol == 10) {
@@ -78,9 +77,9 @@ main
     print("Ryan Gosling");
   };
 
+  int hey;
   if (X > Y) {
     print("Value of Y = " . Y);
-    int hey;
     hey = 10;
   }
   else if (hey == 10) {
@@ -94,10 +93,10 @@ main
   };
 
   int why;
+  int who;
   why = 0;
   if (X > Y) {
     print("Value of Y = " . Y);
-    int who;
     who = 10;
   }
   else if (who == 10) {
