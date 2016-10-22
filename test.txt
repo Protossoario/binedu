@@ -29,6 +29,13 @@ main
 
     input(A);
 
+    int P;
+    P = 34;
+    do {
+      int Q;
+      Q = P + 1;
+    } while (Q < 40);
+
     while (X > 3) {
         print(X);
         X = X + 1;

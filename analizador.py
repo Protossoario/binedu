@@ -24,7 +24,6 @@ tokens = [
     'T_INT_ARR',
     'T_FLOAT_ARR',
     'T_BOOLEAN_ARR',
-    'T_CHAR_ARR',
     'T_STRING_ARR'
 ]
 
@@ -35,7 +34,6 @@ reserved = {
     'int': 'T_INT',
     'float': 'T_FLOAT',
     'string': 'T_STRING',
-    'char': 'T_CHAR',
     'boolean': 'T_BOOLEAN',
     'print': 'T_PRINT',
     'for': 'T_FOR',
@@ -74,7 +72,6 @@ t_T_OPREL = r'&&|\|\|'
 
 t_T_INT_ARR = r'int\[\]'
 t_T_FLOAT_ARR = r'float\[\]'
-t_T_CHAR_ARR = r'char\[\]'
 t_T_STRING_ARR = r'string\[\]'
 t_T_BOOLEAN_ARR = r'boolean\[\]'
 
@@ -147,7 +144,7 @@ class QuadrupleList:
     def printQuadruples(self):
         index = 0
         for quad in self.quadruples:
-            print('| %3d| %6s | %6s | %6s | %6s |' % (index, quad[0], quad[1], quad[2], quad[3]))
+            print('| %3d| %6s | %20s | %6s | %10s |' % (index, quad[0], quad[1], quad[2], quad[3]))
             index += 1
 
 quadList = QuadrupleList()
@@ -214,12 +211,10 @@ def p_var_declare(p):
 def p_type(p):
     '''
     type : T_BOOLEAN
-         | T_CHAR
          | T_STRING
          | T_INT
          | T_FLOAT
          | T_BOOLEAN_ARR
-         | T_CHAR_ARR
          | T_STRING_ARR
          | T_INT_ARR
          | T_FLOAT_ARR
@@ -274,6 +269,7 @@ def p_proc(p):
     '''
 
 def p_condition(p):
+    # if (expression) { };
     '''
     condition : T_IF T_EXP_START expression exp_end block
     '''
@@ -281,6 +277,7 @@ def p_condition(p):
     quadList.updateJump(exp_end, expression['id'])
 
 def p_condition_else(p):
+    # if (expression) { } else { };
     '''
     condition : T_IF T_EXP_START expression exp_end block else
     '''
@@ -288,6 +285,7 @@ def p_condition_else(p):
     quadList.updateJump(exp_end, expression['id'], block['end'] + 1)
 
 def p_condition_else_if(p):
+    # if (expression) { } else if { };
     '''
     condition : T_IF T_EXP_START expression exp_end block else_token condition
     '''
@@ -349,6 +347,14 @@ def p_do_while(p):
     # do { } while ();
     '''
     do_while : T_DO block T_WHILE T_EXP_START expression T_EXP_END
+    '''
+    block = p[2]
+    quadList.insertJump('GotoV', block['start'])
+
+def p_for(p):
+    # for each item X in myArray { };
+    '''
+    for : T_FOR T_EXP_START assign T_STOP expression T_STOP assign T_EXP_END block
     '''
 
 def p_assign_simple(p):
@@ -537,7 +543,7 @@ def p_factor_id(p):
         p[0] = { 'type': 'FLOAT', 'id': id['id'] }
     elif id['type'] == 'BOOLEAN[]':
         p[0] = { 'type': 'BOOLEAN', 'id': id['id'] }
-    elif id['type'].startswith('CHAR') or id['type'].startswith('STRING'):
+    elif id['type'].startswith('STRING'):
         print 'Error semántico. La variable ', id['id'], ' de tipo ', id['type'], ' no puede ser usada en este contexto.'
         raise SyntaxError
     else:
