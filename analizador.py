@@ -24,7 +24,6 @@ tokens = [
     'T_INT_ARR',
     'T_FLOAT_ARR',
     'T_BOOLEAN_ARR',
-    'T_CHAR_ARR',
     'T_STRING_ARR'
 ]
 
@@ -35,7 +34,6 @@ reserved = {
     'int': 'T_INT',
     'float': 'T_FLOAT',
     'string': 'T_STRING',
-    'char': 'T_CHAR',
     'boolean': 'T_BOOLEAN',
     'print': 'T_PRINT',
     'for': 'T_FOR',
@@ -74,7 +72,6 @@ t_T_OPREL = r'&&|\|\|'
 
 t_T_INT_ARR = r'int\[\]'
 t_T_FLOAT_ARR = r'float\[\]'
-t_T_CHAR_ARR = r'char\[\]'
 t_T_STRING_ARR = r'string\[\]'
 t_T_BOOLEAN_ARR = r'boolean\[\]'
 
@@ -144,7 +141,7 @@ class QuadrupleList:
     def printQuadruples(self):
         index = 0
         for quad in self.quadruples:
-            print('| %3d| %6s | %20s | %6s | %6s |' % (index, quad[0], quad[1], quad[2], quad[3]))
+            print('| %3d| %6s | %20s | %6s | %10s |' % (index, quad[0], quad[1], quad[2], quad[3]))
             index += 1
 
 quadList = QuadrupleList()
@@ -211,12 +208,10 @@ def p_var_declare(p):
 def p_type(p):
     '''
     type : T_BOOLEAN
-         | T_CHAR
          | T_STRING
          | T_INT
          | T_FLOAT
          | T_BOOLEAN_ARR
-         | T_CHAR_ARR
          | T_STRING_ARR
          | T_INT_ARR
          | T_FLOAT_ARR
@@ -527,7 +522,7 @@ def p_factor_id(p):
         p[0] = { 'type': 'FLOAT', 'id': id['id'] }
     elif id['type'] == 'BOOLEAN[]':
         p[0] = { 'type': 'BOOLEAN', 'id': id['id'] }
-    elif id['type'].startswith('CHAR') or id['type'].startswith('STRING'):
+    elif id['type'].startswith('STRING'):
         print 'Error semántico. La variable ', id['id'], ' de tipo ', id['type'], ' no puede ser usada en este contexto.'
         raise SyntaxError
     else:
