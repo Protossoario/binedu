@@ -145,7 +145,7 @@ class QuadrupleList:
     def printQuadruples(self):
         index = 0
         for quad in self.quadruples:
-            print('| %3d| %6s | %6s | %6s | %6s |' % (index, quad[0], quad[1], quad[2], quad[3]))
+            print('| %3d| %6s | %20s | %6s | %6s |' % (index, quad[0], quad[1], quad[2], quad[3]))
             index += 1
 
 quadList = QuadrupleList()
@@ -272,6 +272,7 @@ def p_proc(p):
     '''
 
 def p_condition(p):
+    # if (expression) { };
     '''
     condition : T_IF T_EXP_START expression exp_end block
     '''
@@ -279,6 +280,7 @@ def p_condition(p):
     quadList.updateJump(exp_end, expression['id'])
 
 def p_condition_else(p):
+    # if (expression) { } else { };
     '''
     condition : T_IF T_EXP_START expression exp_end block else
     '''
@@ -286,6 +288,7 @@ def p_condition_else(p):
     quadList.updateJump(exp_end, expression['id'], block['end'] + 1)
 
 def p_condition_else_if(p):
+    # if (expression) { } else if { };
     '''
     condition : T_IF T_EXP_START expression exp_end block else_token condition
     '''
@@ -325,16 +328,18 @@ def p_while_token(p):
     'while_token : T_WHILE'
     p[0] = quadList.getListSize()
 
+def p_do_while(p):
+    # do { } while ();
+    '''
+    do_while : T_DO block T_WHILE T_EXP_START expression exp_end
+    '''
+    block = p[2]
+    quadList.insertJump('GotoV', block['start'])
+
 def p_for(p):
     # for each item X in myArray { };
     '''
     for : T_FOR T_EXP_START assign T_STOP expression T_STOP assign T_EXP_END block
-    '''
-
-def p_do_while(p):
-    # do { } while ();
-    '''
-    do_while : T_DO block T_WHILE T_EXP_START expression T_EXP_END
     '''
 
 def p_assign_simple(p):
