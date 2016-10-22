@@ -122,6 +122,9 @@ class QuadrupleList:
         self.quadruples.append((op, arg1, arg2, tempID))
         return tempID
 
+    def insertFunction(self):
+        self.quadruples.append((None, None, None, None))
+
     def insertAssign(self, val, dest):
         self.quadruples.append(('=', val, None, dest))
 
@@ -148,12 +151,24 @@ quadList = QuadrupleList()
 
 def p_programa(p):
     '''
-    programa : T_PROGRAM T_ID T_STOP functions T_MAIN block
-             | T_PROGRAM T_ID T_STOP T_MAIN block
+    programa : prog_token T_ID T_STOP functions main_token block
+             | prog_token T_ID T_STOP main_token block
     '''
     print('Program syntax parsed correctly')
     print 'Global scope symbols:\n', currentSymbolTable.symbols
     print 'Quadruples:\n', quadList.printQuadruples()
+
+def p_prog_token(p):
+    '''
+    prog_token : T_PROGRAM
+    '''
+    quadList.insertJump('Goto')
+
+def p_main_token(p):
+    '''
+    main_token : T_MAIN
+    '''
+    quadList.updateJump(0)
 
 def p_functions(p):
     '''
@@ -163,16 +178,22 @@ def p_functions(p):
 
 def p_func(p):
     '''
-    func : T_FUNCTION T_ID T_EXP_START parameters T_EXP_END block
-         | T_FUNCTION T_ID T_EXP_START T_EXP_END block
+    func : func_token T_ID T_EXP_START parameters T_EXP_END block
+         | func_token T_ID T_EXP_START T_EXP_END block
     '''
     type = 'FUNCTION'
     id = p[2]
     if currentSymbolTable.lookup(id) == type:
-        print "Error de funcion duplicada: ", id
+        print "Error, duplicated function: ", id
         raise SyntaxError
     else:
         currentSymbolTable.insert(id, type)
+
+def p_func_token(p):
+    '''
+    func_token : T_FUNCTION
+    '''
+    quadList.insertFunction()
 
 def p_parameters(p):
     '''

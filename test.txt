@@ -1,100 +1,101 @@
 program MyProgram;
 
 function myFunction() {
-    float myFloat;
-    myFloat = 1;
-    do {
-        print(myFloat);
-        myFloat = myFloat + 1;
-    } while (myFloat < 10);
+  float myFloat;
+  myFloat = 1;
+  do {
+      print(myFloat);
+      myFloat = myFloat + 1;
+  } while (myFloat < 10);
 }
 
 main
 {
-    int[] x;
-    float X;
-    float Y;
-    int A, B;
-    print("Hello");
-    x = [];
-    B = 7;
-    A = B;
-    X = 9;
-    Y = x[3 / 1];
+  int[] x;
+  float X;
+  float Y;
+  int A, B;
+  print("Hello");
+  x = [];
+  B = 7;
+  A = B;
+  X = 9;
+  Y = x[3 / 1];
 
-    input(A);
+  input(A);
 
-    int P;
-    P = 34;
-    do {
-      int Q;
-      Q = P + 1;
-    } while (Q < 40);
+  int P;
+  P = 34;
+  do {
+    int Q;
+    Q = P + 1;
+  } while (Q < 40);
 
-    while (X > 3) {
-        print(X);
-        X = X + 1;
-    };
+  while (X > 3) {
+      print(X);
+      X = X + 1;
+  };
 
-    if (A < B && 1 < 2) {
-        print("Oops!");
-        int prueba;
-        prueba = 2 + 2;
-    };
+  if (A < B && 1 < 2) {
+      print("Oops!");
+      int prueba;
+      prueba = 2 + 2;
+  };
 
-    if (X > Y) {
-      print("Value of X = " . X);
-      int hola;
-      hola = 10;
-    }
-    else {
-      Y = 2 + 2 * X;
-    };
+  if (X > Y) {
+    print("Value of X = " . X);
+    int hola;
+    hola = 10;
+  }
+  else {
+    Y = 2 + 2 * X;
+  };
 
-    if (X > Y) {
-      print("Value of Y = " . Y);
-      int lol;
-      lol = 10;
-    }
-    else if (lol == 10) {
-      int wuuw;
-      wuuw = 1;
-      print("Ryan Gosling");
-    };
+  if (X > Y) {
+    print("Value of Y = " . Y);
+    int lol;
+    lol = 10;
+  }
+  else if (lol == 10) {
+    int wuuw;
+    wuuw = 1;
+    print("Ryan Gosling");
+  };
 
-    if (X > Y) {
-      print("Value of Y = " . Y);
-      int hey;
-      hey = 10;
-    }
-    else if (hey == 10) {
-      int hoy;
-      hoy = 1;
-      print("Ryan Gosling");
-    }
-    else {
-      int ayer;
-      ayer = 23;
-    };
+  if (X > Y) {
+    print("Value of Y = " . Y);
+    int hey;
+    hey = 10;
+  }
+  else if (hey == 10) {
+    int hoy;
+    hoy = 1;
+    print("Ryan Gosling");
+  }
+  else {
+    int ayer;
+    ayer = 23;
+  };
 
-    int why;
-    why = 0;
-    if (X > Y) {
-      print("Value of Y = " . Y);
-      int who;
-      who = 10;
-    }
-    else if (who == 10) {
-      int when;
-      when = 1;
-      print("Ryan Gosling");
-    }
-    else if (why < 10) {
-      int what;
-      what = 23;
-    }
-    else {
-      int where;
-      where = 5;
-    };
+  int why;
+  why = 0;
+  if (X > Y) {
+    print("Value of Y = " . Y);
+    int who;
+    who = 10;
+  }
+  else if (who == 10) {
+    int when;
+    when = 1;
+    print("Ryan Gosling");
+  }
+  else if (why < 10) {
+    int what;
+    what = 23;
+  }
+  else {
+    int where;
+    where = 5;
+  };
+
 }
