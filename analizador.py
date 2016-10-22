@@ -46,7 +46,8 @@ reserved = {
     'do': 'T_DO',
     'true': 'T_TRUE',
     'false': 'T_FALSE',
-    'main': 'T_MAIN'
+    'main': 'T_MAIN',
+    'return': 'T_RETURN'
 }
 
 tokens += reserved.values()
@@ -116,6 +117,9 @@ class QuadrupleList:
         self.quadruples = list()
         self.tempCounter = 0
 
+    def insertQuad(self, name, arg1, arg2=None, dest=None):
+        self.quadruples.append((name, arg1, arg2, dest))
+
     def insertOperation(self, op, arg1, arg2=None):
         tempID = 't' + str(self.tempCounter)
         self.tempCounter += 1
@@ -137,6 +141,9 @@ class QuadrupleList:
 
     def getListSize(self):
         return len(self.quadruples)
+
+    def getLastQuad(self):
+        return self.quadruples[-1]
 
     def moveQuadRangeToEnd(self, begin, end):
         self.quadruples = self.quadruples[:begin] + self.quadruples[end:] + self.quadruples[begin:end]
@@ -163,7 +170,7 @@ def p_prog_token(p):
     '''
     prog_token : T_PROGRAM
     '''
-    quadList.insertJump('Goto')
+    quadList.insertJump('GOTO')
 
 def p_main_token(p):
     '''
@@ -189,7 +196,8 @@ def p_func(p):
         raise SyntaxError
     else:
         currentSymbolTable.insert(id, type)
-    quadList.insertJump('RET')
+    if quadList.getLastQuad()[0] != 'RET' :
+        quadList.insertJump('RET')
 
 def p_func_token(p):
     '''
@@ -277,15 +285,62 @@ def p_block_end(p):
 
 def p_call_func(p):
     '''
-    call_func : T_ID T_EXP_START args T_EXP_END
-              | T_ID T_EXP_START T_EXP_END
+    call_func : id_token T_EXP_START T_EXP_END
     '''
+    id= p[1]
+    if currentSymbolTable.lookup(id) != 'FUNCTION' :
+        print("Semantic error, %s is not a function" % (id))
+        raise SyntaxError
+    quadList.insertQuad('GOSUB', id)
+
+def p_call_func_args(p):
+    '''
+    call_func : id_token T_EXP_START args T_EXP_END
+    '''
+    id, args = p[1], p[3]
+    if currentSymbolTable.lookup(id) != 'FUNCTION' :
+        print("Semantic error, %s is not a function" % (id))
+        raise SyntaxError
+    count = 1
+    for param in args :
+        quadList.insertQuad('PARAM', param['id'], None, 'param' + str(count) )
+        count += 1
+    quadList.insertQuad('GOSUB', id)
+
+def p_return(p):
+    '''
+    return : T_RETURN
+    '''
+    quadList.insertJump('RET')
+
+def p_return_value(p):
+    '''
+    return : T_RETURN value
+    '''
+    value = p[2]
+    quadList.insertQuad('RETURN', value['id'])
+    quadList.insertJump('RET')
+
+def p_id_token(p):
+    '''
+    id_token : T_ID
+    '''
+    id = p[1]
+    quadList.insertQuad('ERA', id)
+    p[0] = id
 
 def p_args(p):
     '''
     args : value T_COMMA args
-         | value
     '''
+    value, args = p[1], p[3]
+    p[0] = [ value ] + args
+
+def p_args_value(p):
+    '''
+    args : value
+    '''
+    p[0] = [ p[1] ]
 
 def p_process(p):
     '''
@@ -304,6 +359,7 @@ def p_proc(p):
          | input
          | var_declare
          | call_func
+         | return
     '''
 
 def p_condition(p):
@@ -335,7 +391,7 @@ def p_exp_end(p):
     '''
     exp_end : T_EXP_END
     '''
-    p[0] = quadList.insertJump('GotoF')
+    p[0] = quadList.insertJump('GOTOF')
 
 def p_else(p):
     '''
@@ -348,7 +404,7 @@ def p_else_token(p):
     '''
     else_token : T_ELSE
     '''
-    p[0] = quadList.insertJump('Goto')
+    p[0] = quadList.insertJump('GOTO')
 
 def p_while(p):
     # while (expresion) { };
@@ -356,7 +412,7 @@ def p_while(p):
     while : while_token T_EXP_START expression exp_end block
     '''
     while_token, expression, exp_end = p[1], p[3], p[4]
-    quadList.insertJump('Goto', while_token)
+    quadList.insertJump('GOTO', while_token)
     quadList.updateJump(exp_end, expression['id'])
 
 def p_while_token(p):
@@ -370,7 +426,7 @@ def p_for(p):
     '''
     first_stop, expression, second_stop, block = p[4], p[5], p[6], p[9]
     quadList.moveQuadRangeToEnd(second_stop + 1, block['start'])
-    quadList.insertJump('Goto', first_stop)
+    quadList.insertJump('GOTO', first_stop)
     quadList.updateJump(second_stop, expression['id'])
 
 def p_first_stop(p):
@@ -379,7 +435,7 @@ def p_first_stop(p):
 
 def p_second_stop(p):
     'second_stop : T_STOP'
-    p[0] = quadList.insertJump('GotoF')
+    p[0] = quadList.insertJump('GOTOF')
 
 def p_do_while(p):
     # do { } while ();
@@ -387,7 +443,7 @@ def p_do_while(p):
     do_while : T_DO block T_WHILE T_EXP_START expression T_EXP_END
     '''
     block = p[2]
-    quadList.insertJump('GotoV', block['start'])
+    quadList.insertJump('GOTOV', block['start'])
 
 def p_assign_simple(p):
     'assign : id T_ASSIGN value'
@@ -467,12 +523,12 @@ def p_value_string(p):
 def p_write(p):
     'write : T_PRINT T_EXP_START concat T_EXP_END'
     concat = p[3]
-    quadList.insertOperation('print', concat['id'])
+    quadList.insertQuad('print', concat['id'])
 
 def p_input(p):
     'input : T_INPUT T_EXP_START id T_EXP_END'
     id = p[3]
-    quadList.insertOperation('input', id['id'])
+    quadList.insertQuad('input', id['id'])
 
 def p_concat_const(p):
     'concat : T_STRING_CONST'

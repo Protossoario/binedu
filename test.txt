@@ -14,13 +14,10 @@ function myFunction() {
     };
 }
 
-function myFunc2() {
-  int meep;
-  int meep2;
+function myFunc2(int meep, int meep2) {
   int result;
-  meep = 50;
-  meep2 = 4;
   result = meep * meep2;
+  return result;
 }
 
 main
@@ -39,6 +36,7 @@ main
   input(A);
 
   myFunction();
+  myFunc2(A, B);
 
   int P;
   P = 34;
