@@ -129,7 +129,6 @@ class QuadrupleList:
         self.quadruples.append(('=', val, None, dest))
 
     def insertJump(self, jump, destination=None):
-        # genera cuadruplo vacio para despues actualizarlo con la informacion que necesita
         self.quadruples.append((jump, None, None, destination))
         return len(self.quadruples) - 1
 
@@ -340,20 +339,19 @@ def p_do_while(p):
 def p_assign_simple(p):
     'assign : id T_ASSIGN value'
     id, value = p[1], p[3]
-    if id[0] == 'FLOAT' and value['type'] == 'INT':
-        print 'Advertencia: casting de int a float implicito al asignar a la variable ', p[1][1]
-        quadList.insertAssign(value['id'], id[1])
-    elif id[0] != value['type']:
-        print 'Error semántico. La variable ', id[1], ' es de tipo ', id[0], ', pero se está intentando asignar un tipo ', value['type']
+    if id['type'] == 'FLOAT' and value['type'] == 'INT':
+        quadList.insertAssign(value['id'], id['id'])
+    elif id['type'] != value['type']:
+        print 'Error semántico. La variable ', id['id'], ' es de tipo ', id['type'], ', pero se está intentando asignar un tipo ', value['type']
         raise SyntaxError
     else:
-        quadList.insertAssign(value['id'], id[1])
+        quadList.insertAssign(value['id'], id['id'])
 
 def p_assign_array(p):
     'assign : id T_ASSIGN T_ARR_START array T_ARR_END'
     id, array = p[1], p[4]
-    if id[0] != array['type'] + '[]':
-        print 'Error semántico. La variable ', id[1], ' es de tipo ', id[0], ', pero se está intentando asignar un arreglo de tipo ', array['type']
+    if id['type'] != array['type'] + '[]':
+        print 'Error semántico. La variable ', id['id'], ' es de tipo ', id['type'], ', pero se está intentando asignar un arreglo de tipo ', array['type']
         raise SyntaxError
     #else:
         # generar cuadruplo de asignacion de arreglo
@@ -361,8 +359,8 @@ def p_assign_array(p):
 def p_assign_array_empty(p):
     'assign : id T_ASSIGN T_ARR_START T_ARR_END'
     id = p[1]
-    if not id[0].endswith('[]'):
-        print 'Error semántico. La variable ', id[1], ' debe ser de tipo arreglo'
+    if not id['type'].endswith('[]'):
+        print 'Error semántico. La variable ', id['id'], ' debe ser de tipo arreglo'
         print currentSymbolTable.symbols
         raise SyntaxError
     #else:
@@ -380,7 +378,7 @@ def p_id_array(p):
         print 'Error semántico. La variable ', p[1], ' debe ser de tipo arreglo'
         raise SyntaxError
     else:
-        p[0] = (type, p[1], 'ARRAY')
+        p[0] = { 'type': type, 'id': p[1] }
 
 def p_id(p):
     'id : T_ID'
@@ -390,7 +388,7 @@ def p_id(p):
         print currentSymbolTable.symbols
         raise SyntaxError
     else:
-        p[0] = (type, p[1], 'VAR')
+        p[0] = { 'type': type, 'id': p[1] }
 
 def p_array(p):
     'array : value T_COMMA array'
@@ -420,6 +418,8 @@ def p_write(p):
 
 def p_input(p):
     'input : T_INPUT T_EXP_START id T_EXP_END'
+    id = p[3]
+    quadList.insertOperation('input', id['id'])
 
 def p_concat_const(p):
     'concat : T_STRING_CONST'
@@ -515,17 +515,18 @@ def p_factor_boolean(p):
 
 def p_factor_id(p):
     'factor : id'
-    if p[1][0] == 'INT[]':
-        p[0] = { 'type': 'INT', 'id': p[1][1] }
-    elif p[1][0] == 'FLOAT[]':
-        p[0] = { 'type': 'FLOAT', 'id': p[1][1] }
-    elif p[1][0] == 'BOOLEAN[]':
-        p[0] = { 'type': 'BOOLEAN', 'id': p[1][1] }
-    elif p[1][0].startswith('CHAR') or p[1][0].startswith('STRING'):
-        print 'Error semántico. La variable ', p[1][1], ' de tipo ', p[1][0], ' no puede ser usada en este contexto.'
+    id = p[1]
+    if id['type'] == 'INT[]':
+        p[0] = { 'type': 'INT', 'id': id['id'] }
+    elif id['type'] == 'FLOAT[]':
+        p[0] = { 'type': 'FLOAT', 'id': id['id'] }
+    elif id['type'] == 'BOOLEAN[]':
+        p[0] = { 'type': 'BOOLEAN', 'id': id['id'] }
+    elif id['type'].startswith('CHAR') or id['type'].startswith('STRING'):
+        print 'Error semántico. La variable ', id['id'], ' de tipo ', id['type'], ' no puede ser usada en este contexto.'
         raise SyntaxError
     else:
-        p[0] = { 'type': p[1][0], 'id': p[1][1] }
+        p[0] = id
 
 def p_error(p):
     print 'Error de sintaxis!'
