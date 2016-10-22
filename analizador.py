@@ -154,6 +154,7 @@ def p_programa(p):
     programa : prog_token T_ID T_STOP functions main_token block
              | prog_token T_ID T_STOP main_token block
     '''
+    quadList.insertJump('end')
     print('Program syntax parsed correctly')
     print 'Global scope symbols:\n', currentSymbolTable.symbols
     print 'Quadruples:\n', quadList.printQuadruples()

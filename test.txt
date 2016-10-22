@@ -112,4 +112,6 @@ main
     where = 5;
   };
 
+  print("FINITO!");
+
 }
