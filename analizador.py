@@ -292,28 +292,11 @@ def p_condition_else_if(p):
     quadList.updateJump(exp_end, expression['id'], block['end'] + 1)
     quadList.updateJump(else_token)
 
-# def p_condition_else_if_else(p):
-#     '''
-#     condition : T_IF T_EXP_START expression exp_end block else_if else
-#     '''
-#     expression, exp_end, block, else_if = p[3], p[4], p[5], p[6]
-#     quadList.updateJump(exp_end, expression['id'], block['end'] + 1)
-#     quadList.updateJump(else_if)
-
 def p_exp_end(p):
     '''
     exp_end : T_EXP_END
     '''
-    # generar un cuadruplo de 'GotoF', y regresa el indice del cuadruplo
     p[0] = quadList.insertJump('GotoF')
-
-# def p_else_if(p):
-#     '''
-#     else_if : else_token T_IF T_EXP_START expression exp_end block
-#     '''
-#     else_token, expression, exp_end, block = p[1], p[4], p[5], p[6]
-#     quadList.updateJump(exp_end, expression['id'], block['end'])
-#     p[0] = else_token
 
 def p_else(p):
     '''
@@ -339,7 +322,6 @@ def p_while(p):
 
 def p_while_token(p):
     'while_token : T_WHILE'
-    # regresar el siguiente cuadruplo, que sera igual al inicio de la expresion del while
     p[0] = quadList.getListSize()
 
 def p_for(p):
