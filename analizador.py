@@ -325,7 +325,7 @@ def p_while_token(p):
 def p_do_while(p):
     # do { } while ();
     '''
-    do_while : T_DO block T_WHILE T_EXP_START expression exp_end
+    do_while : T_DO block T_WHILE T_EXP_START expression T_EXP_END
     '''
     block = p[2]
     quadList.insertJump('GotoV', block['start'])

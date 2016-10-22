@@ -24,10 +24,10 @@ main
 
     input(A);
 
+    int P;
+    P = 34;
     do {
-      int P;
       int Q;
-      P = 34;
       Q = P + 1;
     } while (Q < 40);
 
