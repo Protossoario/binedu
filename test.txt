@@ -22,7 +22,10 @@ main
     X = 9;
     Y = x[3 / 1];
 
-    print(X);
+    while (X > 3) {
+        print(X);
+        X = X + 1;
+    };
 
     if (A < B && 1 < 2) {
         print("Oops!");

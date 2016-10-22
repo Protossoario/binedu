@@ -128,9 +128,9 @@ class QuadrupleList:
     def insertAssign(self, val, dest):
         self.quadruples.append(('=', val, None, dest))
 
-    def insertJump(self, jump):
+    def insertJump(self, jump, destination=None):
         # genera cuadruplo vacio para despues actualizarlo con la informacion que necesita
-        self.quadruples.append((jump, None, None, None))
+        self.quadruples.append((jump, None, None, destination))
         return len(self.quadruples) - 1
 
     def updateJump(self, index, expression, destination=None):
@@ -314,8 +314,16 @@ def p_else_token(p):
 def p_while(p):
     # while (expresion) { };
     '''
-    while : T_WHILE T_EXP_START expression T_EXP_END block
+    while : while_token T_EXP_START expression exp_end block
     '''
+    while_token, expression, exp_end = p[1], p[3], p[4]
+    quadList.insertJump('Goto', while_token)
+    quadList.updateJump(exp_end, expression['id'])
+
+def p_while_token(p):
+    'while_token : T_WHILE'
+    # regresar el siguiente cuadruplo, que sera igual al inicio de la expresion del while
+    p[0] = quadList.getListSize()
 
 def p_for(p):
     # for each item X in myArray { };
