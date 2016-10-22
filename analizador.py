@@ -189,6 +189,7 @@ def p_func(p):
         raise SyntaxError
     else:
         currentSymbolTable.insert(id, type)
+    quadList.insertJump('RET')
 
 def p_func_token(p):
     '''
@@ -274,6 +275,18 @@ def p_block_end(p):
     '''
     p[0] = quadList.getListSize()
 
+def p_call_func(p):
+    '''
+    call_func : T_ID T_EXP_START args T_EXP_END
+              | T_ID T_EXP_START T_EXP_END
+    '''
+
+def p_args(p):
+    '''
+    args : value T_COMMA args
+         | value
+    '''
+
 def p_process(p):
     '''
     process : proc T_STOP process
@@ -290,6 +303,7 @@ def p_proc(p):
          | write
          | input
          | var_declare
+         | call_func
     '''
 
 def p_condition(p):
@@ -374,12 +388,6 @@ def p_do_while(p):
     '''
     block = p[2]
     quadList.insertJump('GotoV', block['start'])
-
-def p_for(p):
-    # for each item X in myArray { };
-    '''
-    for : T_FOR T_EXP_START assign T_STOP expression T_STOP assign T_EXP_END block
-    '''
 
 def p_assign_simple(p):
     'assign : id T_ASSIGN value'

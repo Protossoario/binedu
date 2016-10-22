@@ -38,6 +38,8 @@ main
 
   input(A);
 
+  myFunction();
+
   int P;
   P = 34;
   do {
