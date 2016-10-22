@@ -187,6 +187,12 @@ def p_param(p):
     '''
     param : type T_ID
     '''
+    type, id = p[1], p[2]
+    if currentSymbolTable.lookup(id) == type:
+        print "Error de variable duplicada: ", type , " ", id
+        raise SyntaxError
+    else:
+        currentSymbolTable.insert(id, type)
 
 def p_var_declare_arr(p):
     'var_declare : type T_ARR_START T_ARR_END var_ids'
@@ -206,7 +212,7 @@ def p_var_declare(p):
             print "Error de variable duplicada: ", type , " ", id
             raise SyntaxError
         else:
-            currentSymbolTable.insert(id, p[1])
+            currentSymbolTable.insert(id, type)
 
 def p_type(p):
     '''
