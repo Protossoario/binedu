@@ -119,7 +119,7 @@ class QuadrupleList:
         self.quadruples = list()
         self.tempCounter = 0
 
-    def insertOperation(self, op, arg1, arg2):
+    def insertOperation(self, op, arg1, arg2=None):
         tempID = 't' + str(self.tempCounter)
         self.tempCounter += 1
         self.quadruples.append((op, arg1, arg2, tempID))
@@ -267,6 +267,7 @@ def p_proc(p):
          | assign
          | condition
          | write
+         | input
          | var_declare
     '''
 
@@ -414,14 +415,31 @@ def p_value_string(p):
 
 def p_write(p):
     'write : T_PRINT T_EXP_START concat T_EXP_END'
+    concat = p[3]
+    quadList.insertOperation('print', concat['id'])
 
-def p_concat(p):
-    '''
-    concat : T_STRING_CONST T_CONCAT concat
-           | expression T_CONCAT concat
-           | T_STRING_CONST
-           | expression
-    '''
+def p_input(p):
+    'input : T_INPUT T_EXP_START id T_EXP_END'
+
+def p_concat_const(p):
+    'concat : T_STRING_CONST'
+    p[0] = { 'type': 'STRING', 'id': p[1] }
+
+def p_concat_expr(p):
+    'concat : expression'
+    p[0] = p[1]
+
+def p_concat_op_const(p):
+    'concat : T_STRING_CONST T_CONCAT concat'
+    string, op, concat = p[1], p[2], p[3]
+    tempID = quadList.insertOperation(op, string, concat['id'])
+    p[0] = { 'type': 'STRING', 'id': tempID }
+
+def p_concat_op_expr(p):
+    'concat : expression T_CONCAT concat'
+    expression, op, concat = p[1], p[2], p[3]
+    tempID = quadList.insertOperation(op, expression['id'], concat['id'])
+    p[0] = { 'type': 'STRING', 'id': tempID }
 
 def p_expression_op(p):
     # Expresiones && y ||
