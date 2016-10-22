@@ -133,7 +133,7 @@ class QuadrupleList:
         self.quadruples.append((jump, None, None, None))
         return len(self.quadruples) - 1
 
-    def updateJump(self, index, expression, destination=None):
+    def updateJump(self, index, expression=None, destination=None):
         if destination is None :
             destination = len(self.quadruples)
         jump = (self.quadruples[index][0], expression, None, destination)
@@ -272,9 +272,7 @@ def p_proc(p):
 
 def p_condition(p):
     '''
-    condition : T_IF T_EXP_START expression exp_end block else_if else
-              | T_IF T_EXP_START expression exp_end block else_if
-              | T_IF T_EXP_START expression exp_end block
+    condition : T_IF T_EXP_START expression exp_end block
     '''
     expression, exp_end = p[3], p[4]
     quadList.updateJump(exp_end, expression['id'])
@@ -286,6 +284,22 @@ def p_condition_else(p):
     expression, exp_end, block = p[3], p[4], p[5]
     quadList.updateJump(exp_end, expression['id'], block['end'] + 1)
 
+def p_condition_else_if(p):
+    '''
+    condition : T_IF T_EXP_START expression exp_end block else_token condition
+    '''
+    expression, exp_end, block, else_token = p[3], p[4], p[5], p[6]
+    quadList.updateJump(exp_end, expression['id'], block['end'] + 1)
+    quadList.updateJump(else_token)
+
+# def p_condition_else_if_else(p):
+#     '''
+#     condition : T_IF T_EXP_START expression exp_end block else_if else
+#     '''
+#     expression, exp_end, block, else_if = p[3], p[4], p[5], p[6]
+#     quadList.updateJump(exp_end, expression['id'], block['end'] + 1)
+#     quadList.updateJump(else_if)
+
 def p_exp_end(p):
     '''
     exp_end : T_EXP_END
@@ -293,10 +307,13 @@ def p_exp_end(p):
     # generar un cuadruplo de 'GotoF', y regresa el indice del cuadruplo
     p[0] = quadList.insertJump('GotoF')
 
-def p_else_if(p):
-    '''
-    else_if : T_ELSE T_IF T_EXP_START expression T_EXP_END block
-    '''
+# def p_else_if(p):
+#     '''
+#     else_if : else_token T_IF T_EXP_START expression exp_end block
+#     '''
+#     else_token, expression, exp_end, block = p[1], p[4], p[5], p[6]
+#     quadList.updateJump(exp_end, expression['id'], block['end'])
+#     p[0] = else_token
 
 def p_else(p):
     '''

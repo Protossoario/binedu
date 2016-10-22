@@ -31,11 +31,58 @@ main
     };
 
     if (X > Y) {
-        print("Value of X = " . X);
-        int hola;
-        hola = 10;
+      print("Value of X = " . X);
+      int hola;
+      hola = 10;
     }
     else {
-        Y = 2 + 2 * X;
+      Y = 2 + 2 * X;
+    };
+
+    if (X > Y) {
+      print("Value of Y = " . Y);
+      int lol;
+      lol = 10;
+    }
+    else if (lol == 10) {
+      int wuuw;
+      wuuw = 1;
+      print("Ryan Gosling");
+    };
+
+    if (X > Y) {
+      print("Value of Y = " . Y);
+      int hey;
+      hey = 10;
+    }
+    else if (hey == 10) {
+      int hoy;
+      hoy = 1;
+      print("Ryan Gosling");
+    }
+    else {
+      int ayer;
+      ayer = 23;
+    };
+
+    int why;
+    why = 0;
+    if (X > Y) {
+      print("Value of Y = " . Y);
+      int who;
+      who = 10;
+    }
+    else if (who == 10) {
+      int when;
+      when = 1;
+      print("Ryan Gosling");
+    }
+    else if (why < 10) {
+      int what;
+      what = 23;
+    }
+    else {
+      int where;
+      where = 5;
     };
 }
