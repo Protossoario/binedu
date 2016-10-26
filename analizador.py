@@ -620,7 +620,7 @@ def p_factor_id(p):
 def p_error(p):
     if p:
         global lineNumber
-        print('Syntax error at token "%s" in line %d.' % (p.value, lineNumber))
+        print('Syntax error at token "%s" in line #%d.' % (p.value, lineNumber))
     else:
         print('Syntax error at EOF.')
 
