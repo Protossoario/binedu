@@ -76,13 +76,19 @@ t_T_FLOAT_ARR = r'float\[\]'
 t_T_STRING_ARR = r'string\[\]'
 t_T_BOOLEAN_ARR = r'boolean\[\]'
 
-t_ignore = ' \t\n\r'
+t_ignore = ' \t'
 
 def t_T_ID(t):
     r'[a-zA-Z][a-zA-Z0-9_]*'
     if t.value in reserved:
         t.type = reserved[t.value]
     return t
+
+lineNumber = 1
+def t_endl(t):
+    r'\r?\n'
+    global lineNumber
+    lineNumber += 1
 
 def t_error(t):
     print("Illegal character '%s'" % t.value[0])
@@ -115,11 +121,14 @@ class SymbolTable:
 
     def __str__(self):
         result = ''
+        tab = '| =>%9s' % (' ')
         for key, value in self.symbols.iteritems():
-            result += '| %10s | %8s |\n' % (key, value)
+            result += '| %10s | %10s |\n' % (key, value)
         for child in self.children:
-            result += ' =>'
-            result += '\t%s' % (child)
+            childStr = str(child)
+            if childStr:
+                result += tab
+                result += tab.join(childStr.splitlines(True))
         return result
 
 currentSymbolTable = SymbolTable()
@@ -168,15 +177,16 @@ class QuadrupleList:
 
 quadList = QuadrupleList()
 
-def p_programa(p):
+def p_program(p):
     '''
-    programa : prog_token T_ID T_STOP functions main_token block
-             | prog_token T_ID T_STOP main_token block
+    program : prog_token T_ID T_STOP functions main_token block
+            | prog_token T_ID T_STOP main_token block
     '''
     quadList.insertJump('end')
     print('Program syntax parsed correctly')
-    print 'Global scope symbols:\n', currentSymbolTable
-    print 'Quadruples:\n', quadList.printQuadruples()
+    print('Symbols Tables:\n', currentSymbolTable)
+    print('Quadruples:')
+    quadList.printQuadruples()
 
 def p_prog_token(p):
     '''
@@ -202,9 +212,9 @@ def p_func(p):
          | func_token T_ID T_EXP_START T_EXP_END block
     '''
     type = 'FUNCTION'
-    id = p[2]
+    lineNumber, id = p[1], p[2]
     if currentSymbolTable.lookup(id) == type:
-        print "Error, duplicated function: ", id
+        print('Semantic Error: duplicated function with ID "%s" in line #%d.' % (id, lineNumber))
         raise SyntaxError
     else:
         currentSymbolTable.insert(id, type)
@@ -215,6 +225,7 @@ def p_func_token(p):
     '''
     func_token : T_FUNCTION
     '''
+    p[0] = lineNumber
 
 def p_parameters(p):
     '''
@@ -228,7 +239,7 @@ def p_param(p):
     '''
     type, id = p[1], p[2]
     if currentSymbolTable.lookup(id) == type:
-        print "Error de variable duplicada: ", type , " ", id
+        print('Semantic Error: duplicated variable of type %s with ID "%s" in line #%d.' % (type, id, lineNumber))
         raise SyntaxError
     else:
         currentSymbolTable.insert(id, type)
@@ -238,7 +249,7 @@ def p_var_declare_arr(p):
     type = p[1]
     for id in p[4]:
         if currentSymbolTable.lookup(id) == type:
-            print "Error de variable duplicada: ", type , " ", id
+            print('Semantic Error: duplicated variable of type %s with ID "%s" in line #%d.' % (type, id, lineNumber))
             raise SyntaxError
         else:
             currentSymbolTable.insert(id, p[1] + '[]')
@@ -248,7 +259,7 @@ def p_var_declare(p):
     type = p[1]
     for id in p[2]:
         if currentSymbolTable.lookup(id) == type:
-            print "Error de variable duplicada: ", type , " ", id
+            print('Semantic Error: duplicated variable of type %s with ID "%s" in line #%d.' % (type, id, lineNumber))
             raise SyntaxError
         else:
             currentSymbolTable.insert(id, type)
@@ -283,12 +294,19 @@ def p_block(p):
     '''
     p[0] = { 'start' : p[1], 'end' : p[3] }
 
+def p_block_empty(p):
+    '''
+    block : T_BLOCK_START T_BLOCK_END
+    '''
+    quadNumber = quadList.getListSize()
+    p[0] = { 'start': quadNumber, 'end': quadNumber }
+
 def p_block_start(p):
     '''
     block_start : T_BLOCK_START
     '''
     p[0] = quadList.getListSize()
-    # crear nuevo scope local dentro del bloque
+    # crear nuevo scope local dentro del bloque, solo si el scope anterior no esta vacio
     global currentSymbolTable
     newScope = SymbolTable()
     currentSymbolTable.addChild(newScope)
@@ -472,7 +490,7 @@ def p_assign_simple(p):
     if id['type'] == 'FLOAT' and value['type'] == 'INT':
         quadList.insertAssign(value['id'], id['id'])
     elif id['type'] != value['type']:
-        print 'Error semántico. La variable ', id['id'], ' es de tipo ', id['type'], ', pero se está intentando asignar un tipo ', value['type']
+        print('Semantic Error: variable with ID "%s" is type %s, but you are trying to assign an array of type %s to it in line #%d.' % (id['id'], id['type'], array['type'], lineNumber))
         raise SyntaxError
     else:
         quadList.insertAssign(value['id'], id['id'])
@@ -481,7 +499,7 @@ def p_assign_array(p):
     'assign : id T_ASSIGN T_ARR_START array T_ARR_END'
     id, array = p[1], p[4]
     if id['type'] != array['type'] + '[]':
-        print 'Error semántico. La variable ', id['id'], ' es de tipo ', id['type'], ', pero se está intentando asignar un arreglo de tipo ', array['type']
+        print('Semantic Error: variable with ID "%s" is type %s, but you are trying to assign an array of type %s to it in line #%d.' % (id['id'], id['type'], array['type'], lineNumber))
         raise SyntaxError
     #else:
         # generar cuadruplo de asignacion de arreglo
@@ -490,8 +508,7 @@ def p_assign_array_empty(p):
     'assign : id T_ASSIGN T_ARR_START T_ARR_END'
     id = p[1]
     if not id['type'].endswith('[]'):
-        print 'Error semántico. La variable ', id['id'], ' debe ser de tipo arreglo'
-        print currentSymbolTable.symbols
+        print('Semantic Error: variable with ID "%s" must be an array in line #%d.' % (id['id'], lineNumber))
         raise SyntaxError
     #else:
         # generar cuadruplo de asignacion de arreglo
@@ -502,10 +519,10 @@ def p_id_array(p):
     '''
     type = currentSymbolTable.lookup(p[1])
     if type is None:
-        print 'Error semántico. No se declaro el arregló con ID ', p[1]
+        print('Semantic Error: undeclared array with ID "%s" in line #%d.' % (p[1], lineNumber))
         raise SyntaxError
     elif not type.endswith('[]'):
-        print 'Error semántico. La variable ', p[1], ' debe ser de tipo arreglo'
+        print('Semantic Error: variable with ID "%s" must be an array in line #%d.' % (p[1], lineNumber))
         raise SyntaxError
     else:
         p[0] = { 'type': type, 'id': p[1] }
@@ -514,8 +531,7 @@ def p_id(p):
     'id : T_ID'
     type = currentSymbolTable.lookup(p[1])
     if type is None:
-        print 'Error semántico. No se declaro la variable con ID ', p[1]
-        print currentSymbolTable.symbols
+        print('Semantic Error: undeclared variable with ID "%s" in line #%d.' % (p[1], lineNumber))
         raise SyntaxError
     else:
         p[0] = { 'type': type, 'id': p[1] }
@@ -524,8 +540,7 @@ def p_array(p):
     'array : value T_COMMA array'
     value, array = p[1], p[3]
     if value['type'] != array['type']:
-        print 'Error semántico. Los arreglos deben ser de un solo tipo.'
-        print 'Tipos que no encajan: ', value['type'], ' -> ', array['type']
+        print('Semantic Error: type mismatch in array declaration between %s and %s values in line #%d.' % (value['type'], array['type'], lineNumber))
         raise SyntaxError
     p[0] = value
 
@@ -611,7 +626,7 @@ def p_term_op(p):
     'term : factor T_OPFACT term'
     factor, op, term = p[1], p[2], p[3]
     if (factor['type'] != 'INT' and factor['type'] != 'FLOAT') or (term['type'] != 'INT' and term['type'] != 'FLOAT'):
-        print 'Error semántico. Los factores aritméticos deben ser de tipo int o float.'
+        print('Semantic Error: arithmetic factors must be of numeric type (int or float) in line #%d.' % (lineNumber))
         raise SyntaxError
     elif factor['type'] == 'FLOAT' or term['type'] == 'FLOAT':
         type = 'FLOAT'
@@ -653,14 +668,17 @@ def p_factor_id(p):
     elif id['type'] == 'BOOLEAN[]':
         p[0] = { 'type': 'BOOLEAN', 'id': id['id'] }
     elif id['type'].startswith('STRING'):
-        print 'Error semántico. La variable ', id['id'], ' de tipo ', id['type'], ' no puede ser usada en este contexto.'
+        print('Semantic Error: Variable with ID "%s" and type %s cannot be used in this type of expression, in line #%d.' % (id['id'], id['type'], lineNumber))
         raise SyntaxError
     else:
         p[0] = id
 
 def p_error(p):
-    print 'Error de sintaxis!'
-    print p
+    if p:
+        global lineNumber
+        print('Syntax error at token "%s" in line #%d.' % (p.value, lineNumber))
+    else:
+        print('Syntax error at EOF.')
 
 parser = yacc.yacc()
 

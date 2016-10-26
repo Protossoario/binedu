@@ -43,6 +43,10 @@ main
   do {
     int Q;
     Q = P + 1;
+    if (Q > 0) {
+        int Hugo;
+        Hugo = Hugo + 1;
+    };
   } while (P < 40);
 
   while (X > 3) {
