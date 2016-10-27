@@ -184,7 +184,8 @@ def p_program(p):
     '''
     quadList.insertJump('end')
     print('Program syntax parsed correctly')
-    print('Symbols Tables:\n', currentSymbolTable)
+    print('Symbols Tables:')
+    print(currentSymbolTable)
     print('Quadruples:')
     quadList.printQuadruples()
 
@@ -328,7 +329,7 @@ def p_call_func(p):
     '''
     id= p[1]
     if currentSymbolTable.lookup(id) != 'FUNCTION' :
-        print("Semantic error, %s is not a function" % (id))
+        print('Semantic Error: "%s" is not a function in line #%d.' % (id, lineNumber))
         raise SyntaxError
     quadList.insertQuad('GOSUB', id)
 
@@ -338,7 +339,7 @@ def p_call_func_args(p):
     '''
     id, args = p[1], p[3]
     if currentSymbolTable.lookup(id) != 'FUNCTION' :
-        print("Semantic error, %s is not a function" % (id))
+        print('Semantic Error: "%s" is not a function in line #%d.' % (id, lineNumber))
         raise SyntaxError
     count = 1
     for param in args :
