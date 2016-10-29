@@ -124,8 +124,8 @@ class SymbolTable:
     def __str__(self):
         result = ''
         tab = '| =>%9s' % (' ')
-        for key, value in self.symbols.iteritems():
-            result += '| %10s | %10s |\n' % (key, value)
+        for key, symbol in self.symbols.iteritems():
+            result += '| %10s | %10s |\n' % (key, symbol['memID'])
         for child in self.children:
             childStr = str(child)
             if childStr:
