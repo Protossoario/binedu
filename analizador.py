@@ -106,8 +106,8 @@ class SymbolTable:
         self.children = list()
         self.parent = None
 
-    def insert(self, id, type):
-        self.symbols[id] = type
+    def insert(self, id, type, memID):
+        self.symbols[id] = { 'type': type, 'memID': memID }
 
     def lookup(self, id):
         result = self.symbols.get(id)
@@ -179,6 +179,52 @@ class QuadrupleList:
 
 quadList = QuadrupleList()
 
+class MemoryMap:
+    def __init__(self, range_start=0):
+        self.int_start = range_start + 10000
+        self.float_start = range_start + 20000
+        self.boolean_start = range_start + 30000
+        self.string_start = range_start + 40000
+
+        self.int_count = 0
+        self.float_count = 0
+        self.boolean_count = 0
+        self.string_count = 0
+
+    def generateID(self, type):
+        type = type.translate(None, '[]')
+        if type == 'INT':
+            return self.generateIntID()
+        if type == 'FLOAT':
+            return self.generateFloatID()
+        if type == 'STRING':
+            return self.generateStringID()
+        if type == 'BOOLEAN':
+            return self.generateBooleanID()
+        else:
+            raise Exception
+
+    def generateIntID(self):
+        self.int_count += 1
+        return self.int_count + self.int_start
+
+    def generateFloatID(self):
+        self.float_count += 1
+        return self.float_count + self.float_start
+
+    def generateStringID(self):
+        self.string_count += 1
+        return self.string_count + self.string_start
+
+    def generateBooleanID(self):
+        self.boolean_count += 1
+        return self.boolean_count + self.boolean_start
+
+variables = MemoryMap(50000)
+constants = MemoryMap(100000)
+temps = MemoryMap(150000)
+functions = MemoryMap(200000)
+
 def p_program(p):
     '''
     program : prog_token T_ID T_STOP functions main_token block
@@ -216,11 +262,13 @@ def p_func(p):
     '''
     type = 'FUNCTION'
     lineNumber, id = p[1], p[2]
-    if currentSymbolTable.lookup(id) == type:
+    symbol = currentSymbolTable.lookup(id)
+    if not symbol is None and symbol['type'] == type:
         print('Semantic Error: duplicated function with ID "%s" in line #%d.' % (id, lineNumber))
         raise SyntaxError
     else:
-        currentSymbolTable.insert(id, type)
+        memID = functions.generateIntID()
+        currentSymbolTable.insert(id, type, memID)
     if quadList.getLastQuad()[0] != 'RET' :
         quadList.insertJump('RET')
 
@@ -241,31 +289,37 @@ def p_param(p):
     param : type T_ID
     '''
     type, id = p[1], p[2]
-    if currentSymbolTable.lookup(id) == type:
+    symbol = currentSymbolTable.lookup(id)
+    if not symbol is None and symbol['type'] == type:
         print('Semantic Error: duplicated variable of type %s with ID "%s" in line #%d.' % (type, id, lineNumber))
         raise SyntaxError
     else:
-        currentSymbolTable.insert(id, type)
+        memID = variables.generateID(type)
+        currentSymbolTable.insert(id, type, memID)
 
 def p_var_declare_arr(p):
     'var_declare : type T_ARR_START T_ARR_END var_ids'
     type = p[1]
     for id in p[4]:
-        if currentSymbolTable.lookup(id) == type:
+        symbol = currentSymbolTable.lookup(id)
+        if not symbol is None and symbol['type'] == type:
             print('Semantic Error: duplicated variable of type %s with ID "%s" in line #%d.' % (type, id, lineNumber))
             raise SyntaxError
         else:
-            currentSymbolTable.insert(id, p[1] + '[]')
+            memID = variables.generateID(type)
+            currentSymbolTable.insert(id, p[1] + '[]', memID)
 
 def p_var_declare(p):
     'var_declare : type var_ids'
     type = p[1]
     for id in p[2]:
-        if currentSymbolTable.lookup(id) == type:
+        symbol = currentSymbolTable.lookup(id)
+        if not symbol is None and symbol['type'] == type:
             print('Semantic Error: duplicated variable of type %s with ID "%s" in line #%d.' % (type, id, lineNumber))
             raise SyntaxError
         else:
-            currentSymbolTable.insert(id, type)
+            memID = variables.generateID(type)
+            currentSymbolTable.insert(id, type, memID)
 
 def p_type(p):
     '''
@@ -329,25 +383,27 @@ def p_call_func(p):
     '''
     call_func : id_token T_EXP_START T_EXP_END
     '''
-    id= p[1]
-    if currentSymbolTable.lookup(id) != 'FUNCTION' :
+    id = p[1]
+    symbol = currentSymbolTable.lookup(id)
+    if symbol is None or symbol['type'] != 'FUNCTION' :
         print('Semantic Error: "%s" is not a function in line #%d.' % (id, lineNumber))
         raise SyntaxError
-    quadList.insertQuad('GOSUB', id)
+    quadList.insertQuad('GOSUB', symbol['memID'])
 
 def p_call_func_args(p):
     '''
     call_func : id_token T_EXP_START args T_EXP_END
     '''
     id, args = p[1], p[3]
-    if currentSymbolTable.lookup(id) != 'FUNCTION' :
+    symbol = currentSymbolTable.lookup(id)
+    if symbol is None or symbol['type'] != 'FUNCTION' :
         print('Semantic Error: "%s" is not a function in line #%d.' % (id, lineNumber))
         raise SyntaxError
     count = 1
     for param in args :
-        quadList.insertQuad('PARAM', param['id'], None, 'param' + str(count) )
+        quadList.insertQuad('PARAM', param['id'], None, count)
         count += 1
-    quadList.insertQuad('GOSUB', id)
+    quadList.insertQuad('GOSUB', symbol['memID'])
 
 def p_return(p):
     '''
@@ -493,7 +549,7 @@ def p_assign_simple(p):
     if id['type'] == 'FLOAT' and value['type'] == 'INT':
         quadList.insertAssign(value['id'], id['id'])
     elif id['type'] != value['type']:
-        print('Semantic Error: variable with ID "%s" is type %s, but you are trying to assign an array of type %s to it in line #%d.' % (id['id'], id['type'], array['type'], lineNumber))
+        print('Semantic Error: variable with ID "%s" is type %s, but you are trying to assign a value of type %s in line #%d.' % (id['id'], id['type'], value['type'], lineNumber))
         raise SyntaxError
     else:
         quadList.insertAssign(value['id'], id['id'])
@@ -520,24 +576,24 @@ def p_id_array(p):
     '''
     id : T_ID T_ARR_START e T_ARR_END
     '''
-    type = currentSymbolTable.lookup(p[1])
-    if type is None:
+    symbol = currentSymbolTable.lookup(p[1])
+    if symbol is None:
         print('Semantic Error: undeclared array with ID "%s" in line #%d.' % (p[1], lineNumber))
         raise SyntaxError
-    elif not type.endswith('[]'):
+    elif not symbol['type'].endswith('[]'):
         print('Semantic Error: variable with ID "%s" must be an array in line #%d.' % (p[1], lineNumber))
         raise SyntaxError
     else:
-        p[0] = { 'type': type, 'id': p[1] }
+        p[0] = { 'type': symbol['type'], 'id': symbol['memID'] }
 
 def p_id(p):
     'id : T_ID'
-    type = currentSymbolTable.lookup(p[1])
-    if type is None:
+    symbol = currentSymbolTable.lookup(p[1])
+    if symbol is None:
         print('Semantic Error: undeclared variable with ID "%s" in line #%d.' % (p[1], lineNumber))
         raise SyntaxError
     else:
-        p[0] = { 'type': type, 'id': p[1] }
+        p[0] = { 'type': symbol['type'], 'id': symbol['memID'] }
 
 def p_array(p):
     'array : value T_COMMA array'
