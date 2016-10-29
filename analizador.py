@@ -384,26 +384,18 @@ def p_call_func(p):
     call_func : id_token T_EXP_START T_EXP_END
     '''
     id = p[1]
-    symbol = currentSymbolTable.lookup(id)
-    if symbol is None or symbol['type'] != 'FUNCTION' :
-        print('Semantic Error: "%s" is not a function in line #%d.' % (id, lineNumber))
-        raise SyntaxError
-    quadList.insertQuad('GOSUB', symbol['memID'])
+    quadList.insertQuad('GOSUB', id)
 
 def p_call_func_args(p):
     '''
     call_func : id_token T_EXP_START args T_EXP_END
     '''
     id, args = p[1], p[3]
-    symbol = currentSymbolTable.lookup(id)
-    if symbol is None or symbol['type'] != 'FUNCTION' :
-        print('Semantic Error: "%s" is not a function in line #%d.' % (id, lineNumber))
-        raise SyntaxError
     count = 1
     for param in args :
         quadList.insertQuad('PARAM', param['id'], None, count)
         count += 1
-    quadList.insertQuad('GOSUB', symbol['memID'])
+    quadList.insertQuad('GOSUB', id)
 
 def p_return(p):
     '''
@@ -424,8 +416,12 @@ def p_id_token(p):
     id_token : T_ID
     '''
     id = p[1]
-    quadList.insertQuad('ERA', id)
-    p[0] = id
+    symbol = currentSymbolTable.lookup(id)
+    if symbol is None or symbol['type'] != 'FUNCTION' :
+        print('Semantic Error: "%s" is not a function in line #%d.' % (id, lineNumber))
+        raise SyntaxError
+    quadList.insertQuad('ERA', symbol['memID'])
+    p[0] = symbol['memID']
 
 def p_args(p):
     '''
