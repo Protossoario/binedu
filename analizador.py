@@ -98,6 +98,8 @@ lexer = lex.lex()
 
 import ply.yacc as yacc
 
+from operations import ops
+
 class SymbolTable:
     def __init__(self):
         self.symbols = dict()
@@ -139,19 +141,19 @@ class QuadrupleList:
         self.tempCounter = 0
 
     def insertQuad(self, name, arg1, arg2=None, dest=None):
-        self.quadruples.append((name, arg1, arg2, dest))
+        self.quadruples.append((ops[name], arg1, arg2, dest))
 
     def insertOperation(self, op, arg1, arg2=None):
         tempID = 't' + str(self.tempCounter)
         self.tempCounter += 1
-        self.quadruples.append((op, arg1, arg2, tempID))
+        self.quadruples.append((ops[op], arg1, arg2, tempID))
         return tempID
 
     def insertAssign(self, val, dest):
-        self.quadruples.append(('=', val, None, dest))
+        self.quadruples.append((ops['='], val, None, dest))
 
     def insertJump(self, jump, destination=None):
-        self.quadruples.append((jump, None, None, destination))
+        self.quadruples.append((ops[jump], None, None, destination))
         return len(self.quadruples) - 1
 
     def updateJump(self, index, expression=None, destination=None):
