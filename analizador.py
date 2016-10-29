@@ -138,16 +138,12 @@ currentSymbolTable = SymbolTable()
 class QuadrupleList:
     def __init__(self):
         self.quadruples = list()
-        self.tempCounter = 0
 
     def insertQuad(self, name, arg1, arg2=None, dest=None):
         self.quadruples.append((ops[name], arg1, arg2, dest))
 
-    def insertOperation(self, op, arg1, arg2=None):
-        tempID = 't' + str(self.tempCounter)
-        self.tempCounter += 1
-        self.quadruples.append((ops[op], arg1, arg2, tempID))
-        return tempID
+    def insertOperation(self, op, arg1, arg2=None, memID=None):
+        self.quadruples.append((ops[op], arg1, arg2, memID))
 
     def insertAssign(self, val, dest):
         self.quadruples.append((ops['='], val, None, dest))
@@ -632,21 +628,24 @@ def p_concat_expr(p):
 def p_concat_op_const(p):
     'concat : T_STRING_CONST T_CONCAT concat'
     string, op, concat = p[1], p[2], p[3]
-    tempID = quadList.insertOperation(op, string, concat['id'])
-    p[0] = { 'type': 'STRING', 'id': tempID }
+    memID = temps.generateStringID()
+    quadList.insertOperation(op, string, concat['id'], memID)
+    p[0] = { 'type': 'STRING', 'id': memID }
 
 def p_concat_op_expr(p):
     'concat : expression T_CONCAT concat'
     expression, op, concat = p[1], p[2], p[3]
-    tempID = quadList.insertOperation(op, expression['id'], concat['id'])
-    p[0] = { 'type': 'STRING', 'id': tempID }
+    memID = temps.generateStringID()
+    quadList.insertOperation(op, expression['id'], concat['id'], memID)
+    p[0] = { 'type': 'STRING', 'id': memID }
 
 def p_expression_op(p):
     # Expresiones && y ||
     'expression : exp T_OPREL expression'
     exp, op, expression = p[1], p[2], p[3]
-    tempID = quadList.insertOperation(op, exp['id'], expression['id'])
-    p[0] = { 'type': 'BOOLEAN', 'id': tempID }
+    memID = temps.generateBooleanID()
+    quadList.insertOperation(op, exp['id'], expression['id'], memID)
+    p[0] = { 'type': 'BOOLEAN', 'id': memID }
 
 def p_expresion(p):
     'expression : exp'
@@ -656,8 +655,9 @@ def p_exp_op(p):
     # Expresiones de comparacion (<, >, !=, ==)
     'exp : e T_OPCOMP exp'
     e, op, exp = p[1], p[2], p[3]
-    tempID = quadList.insertOperation(op, e['id'], exp['id'])
-    p[0] = { 'type': 'BOOLEAN', 'id': tempID }
+    memID = temps.generateBooleanID()
+    quadList.insertOperation(op, e['id'], exp['id'], memID)
+    p[0] = { 'type': 'BOOLEAN', 'id': memID }
 
 def p_exp(p):
     'exp : e'
@@ -670,8 +670,9 @@ def p_e_op(p):
         type = 'FLOAT'
     else:
         type = e['type']
-    tempID = quadList.insertOperation(op, term['id'], e['id'])
-    p[0] = { 'type': type, 'id': tempID }
+    memID = temps.generateID(type)
+    quadList.insertOperation(op, term['id'], e['id'], memID)
+    p[0] = { 'type': type, 'id': memID }
 
 def p_e(p):
     'e : term'
@@ -687,8 +688,9 @@ def p_term_op(p):
         type = 'FLOAT'
     else:
         type = term['type']
-    tempID = quadList.insertOperation(op, factor['id'], term['id'])
-    p[0] = { 'type': type, 'id': tempID }
+    memID = temps.generateID(type)
+    quadList.insertOperation(op, factor['id'], term['id'], memID)
+    p[0] = { 'type': type, 'id': memID }
 
 def p_term(p):
     'term : factor'
