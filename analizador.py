@@ -221,6 +221,23 @@ constants = MemoryMap(100000)
 temps = MemoryMap(150000)
 functions = MemoryMap(200000)
 
+class ConstantTable:
+    def __init__(self):
+        self.symbols = dict()
+
+    def insert(self, token, type, memID):
+        tok = self.symbols[token]
+        if not tok:
+            self.symbols[token] = dict()
+        self.symbols[token][type] = memID
+
+    def lookup(self, token, type):
+        if token in self.symbols:
+            return self.symbols[token].get(type)
+        return None
+
+constantTable = ConstantTable()
+
 def p_program(p):
     '''
     program : prog_token T_ID T_STOP functions main_token block
@@ -605,7 +622,13 @@ def p_value_expression(p):
 
 def p_value_string(p):
     'value : T_STRING_CONST'
-    p[0] = { 'type': 'STRING', 'id': p[1] }
+    type = 'STRING'
+    memID = constantTable.lookup(p[1], type)
+    if memID:
+        p[0] = { 'type': type, 'id': memID }
+    else:
+        memID = constants.generateStringID()
+        p[0] = { 'type': type, 'id': memID }
 
 def p_write(p):
     'write : T_PRINT T_EXP_START concat T_EXP_END'
@@ -619,7 +642,13 @@ def p_input(p):
 
 def p_concat_const(p):
     'concat : T_STRING_CONST'
-    p[0] = { 'type': 'STRING', 'id': p[1] }
+    type = 'STRING'
+    memID = constantTable.lookup(p[1], type)
+    if memID:
+        p[0] = { 'type': type, 'id': memID }
+    else:
+        memID = constants.generateStringID()
+        p[0] = { 'type': type, 'id': memID }
 
 def p_concat_expr(p):
     'concat : expression'
@@ -627,10 +656,15 @@ def p_concat_expr(p):
 
 def p_concat_op_const(p):
     'concat : T_STRING_CONST T_CONCAT concat'
-    string, op, concat = p[1], p[2], p[3]
-    memID = temps.generateStringID()
-    quadList.insertOperation(op, string, concat['id'], memID)
-    p[0] = { 'type': 'STRING', 'id': memID }
+    string_const, op, concat = p[1], p[2], p[3]
+    type = 'STRING'
+    memID = constantTable.lookup(string_const, type)
+    if not memID:
+        memID = constants.generateStringID()
+    operationMemID = temps.generateStringID()
+    quadList.insertOperation(op, memID, concat['id'], operationMemID)
+    p[0] = { 'type': type, 'id': operationMemID }
+
 
 def p_concat_op_expr(p):
     'concat : expression T_CONCAT concat'
@@ -702,18 +736,33 @@ def p_factor(p):
 
 def p_factor_int(p):
     'factor : T_INT_CONST'
-    p[0] = { 'type': 'INT', 'id': p[1] }
+    int_const = p[1]
+    type = 'INT'
+    memID = constantTable.lookup(int_const, type)
+    if not memID:
+        memID = constants.generateIntID()
+    p[0] = { 'type': type, 'id': memID }
 
 def p_factor_float(p):
     'factor : T_FLOAT_CONST'
-    p[0] = { 'type': 'FLOAT', 'id': p[1] }
+    float_const = p[1]
+    type = 'FLOAT'
+    memID = constantTable.lookup(float_const, type)
+    if not memID:
+        memID = constants.generateFloatID()
+    p[0] = { 'type': type, 'id': memID }
 
 def p_factor_boolean(p):
     '''
     factor : T_TRUE
            | T_FALSE
     '''
-    p[0] = { 'type': 'BOOLEAN', 'id': p[1] }
+    bool_const = p[1]
+    type = 'BOOLEAN'
+    memID = constantTable.lookup(bool_const, type)
+    if not memID:
+        memID = constants.generateBooleanID()
+    p[0] = { 'type': type, 'id': memID }
 
 def p_factor_id(p):
     'factor : id'
