@@ -182,7 +182,7 @@ def p_program(p):
     program : prog_token T_ID T_STOP functions main_token block
             | prog_token T_ID T_STOP main_token block
     '''
-    quadList.insertJump('end')
+    quadList.insertJump('END')
     print('Program syntax parsed correctly')
     print('Symbols Tables:')
     print(currentSymbolTable)
@@ -560,12 +560,12 @@ def p_value_string(p):
 def p_write(p):
     'write : T_PRINT T_EXP_START concat T_EXP_END'
     concat = p[3]
-    quadList.insertQuad('print', concat['id'])
+    quadList.insertQuad('PRINT', concat['id'])
 
 def p_input(p):
     'input : T_INPUT T_EXP_START id T_EXP_END'
     id = p[3]
-    quadList.insertQuad('input', id['id'])
+    quadList.insertQuad('INPUT', id['id'])
 
 def p_concat_const(p):
     'concat : T_STRING_CONST'
