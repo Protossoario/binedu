@@ -135,6 +135,11 @@ class SymbolTable:
 
 currentSymbolTable = SymbolTable()
 
+def filterNone(token):
+    if token is None:
+        return '-'
+    return token
+
 class QuadrupleList:
     def __init__(self):
         self.quadruples = list()
@@ -170,7 +175,7 @@ class QuadrupleList:
     def printQuadruples(self):
         index = 0
         for quad in self.quadruples:
-            print('| %3d| %6s | %20s | %6s | %10s |' % (index, quad[0], quad[1], quad[2], quad[3]))
+            print('| %3d| %6s | %20s | %6s | %10s |' % (index, filterNone(quad[0]), filterNone(quad[1]), filterNone(quad[2]), filterNone(quad[3])))
             index += 1
 
 quadList = QuadrupleList()
