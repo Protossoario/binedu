@@ -467,6 +467,8 @@ def p_proc(p):
          | var_declare
          | call_func
          | return
+         | graph
+         | load
     '''
 
 def p_condition(p):
@@ -639,6 +641,12 @@ def p_input(p):
     'input : T_INPUT T_EXP_START id T_EXP_END'
     id = p[3]
     quadList.insertQuad('INPUT', id['id'])
+
+def p_graph(p):
+    'graph : T_GRAPH T_EXP_START T_ID T_EXP_END'
+
+def p_load(p):
+    'load : T_LOAD T_EXP_START T_STRING_CONST T_COMMA T_ID T_EXP_END'
 
 def p_concat_const(p):
     'concat : T_STRING_CONST'

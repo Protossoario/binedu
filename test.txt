@@ -12,6 +12,9 @@ function myFunction() {
     for (i = 0; i < 10; i = i + 1) {
         print(i);
     };
+
+    load("file", X);
+    graph(X);
 }
 
 function myFunc2(int meep, int meep2) {
