@@ -35,6 +35,7 @@ reserved = {
     'float': 'T_FLOAT',
     'string': 'T_STRING',
     'boolean': 'T_BOOLEAN',
+    'struct': 'T_STRUCT',
     'print': 'T_PRINT',
     'for': 'T_FOR',
     'function': 'T_FUNCTION',
@@ -237,10 +238,27 @@ class ConstantTable:
         return None
 
 constantTable = ConstantTable()
+#
+# class StructTable:
+#     def __init__(self):
+#         self.symbols = dict()
+#
+#     def insert(self, struct_name, token, type):
+#         struct = self.symbols[struct_name]
+#         if not struct:
+#             self.symbols[token][type] = dict()
+#
+#     def lookup(self, struct_name):
+#         if struct_name in self.symbols:
+#             return self.symbols[struct_name].get()
+#
+# structTable = StructTable()
 
 def p_program(p):
     '''
-    program : prog_token T_ID T_STOP functions main_token block
+    program : prog_token T_ID T_STOP structs functions main_token block
+            | prog_token T_ID T_STOP functions main_token block
+            | prog_token T_ID T_STOP structs main_token block
             | prog_token T_ID T_STOP main_token block
     '''
     quadList.insertJump('END')
@@ -424,6 +442,17 @@ def p_return_value(p):
     quadList.insertQuad('RETURN', value['id'])
     quadList.insertJump('RET')
 
+def p_structs(p):
+    '''
+    structs : stru structs
+            | stru
+    '''
+
+def p_stru(p):
+    '''
+    stru : T_STRUCT T_ID block
+    '''
+    
 def p_id_token(p):
     '''
     id_token : T_ID

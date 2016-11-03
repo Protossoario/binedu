@@ -1,5 +1,10 @@
 program MyProgram;
 
+struct product {
+  int weight;
+  float price;
+}
+
 function myFunction() {
     float myFloat;
     myFloat = 1;
