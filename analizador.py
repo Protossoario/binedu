@@ -136,6 +136,11 @@ class SymbolTable:
 
 currentSymbolTable = SymbolTable()
 
+def filterNone(token):
+    if token is None:
+        return '-'
+    return token
+
 class QuadrupleList:
     def __init__(self):
         self.quadruples = list()
@@ -171,7 +176,7 @@ class QuadrupleList:
     def printQuadruples(self):
         index = 0
         for quad in self.quadruples:
-            print('| %3d| %6s | %20s | %6s | %10s |' % (index, quad[0], quad[1], quad[2], quad[3]))
+            print('| %3d| %6s | %20s | %6s | %10s |' % (index, filterNone(quad[0]), filterNone(quad[1]), filterNone(quad[2]), filterNone(quad[3])))
             index += 1
 
 quadList = QuadrupleList()
@@ -496,6 +501,8 @@ def p_proc(p):
          | var_declare
          | call_func
          | return
+         | graph
+         | load
     '''
 
 def p_condition(p):
@@ -668,6 +675,12 @@ def p_input(p):
     'input : T_INPUT T_EXP_START id T_EXP_END'
     id = p[3]
     quadList.insertQuad('INPUT', id['id'])
+
+def p_graph(p):
+    'graph : T_GRAPH T_EXP_START T_ID T_EXP_END'
+
+def p_load(p):
+    'load : T_LOAD T_EXP_START T_STRING_CONST T_COMMA T_ID T_EXP_END'
 
 def p_concat_const(p):
     'concat : T_STRING_CONST'
