@@ -24,7 +24,8 @@ tokens = [
     'T_INT_ARR',
     'T_FLOAT_ARR',
     'T_BOOLEAN_ARR',
-    'T_STRING_ARR'
+    'T_STRING_ARR',
+    'T_COLON'
 ]
 
 reserved = {
@@ -76,6 +77,8 @@ t_T_INT_ARR = r'int\[\]'
 t_T_FLOAT_ARR = r'float\[\]'
 t_T_STRING_ARR = r'string\[\]'
 t_T_BOOLEAN_ARR = r'boolean\[\]'
+
+t_T_COLON = r'\:'
 
 t_ignore = ' \t'
 
@@ -203,8 +206,9 @@ class MemoryMap:
             return self.generateStringID()
         if type == 'BOOLEAN':
             return self.generateBooleanID()
-        else:
-            raise Exception
+        # TODO : add type for structs
+        # else:
+        #     raise Exception
 
     def generateIntID(self):
         self.int_count += 1
@@ -367,6 +371,7 @@ def p_type(p):
          | T_STRING_ARR
          | T_INT_ARR
          | T_FLOAT_ARR
+         | struct_id
     '''
     p[0] = p[1].upper()
 
@@ -455,9 +460,15 @@ def p_structs(p):
 
 def p_stru(p):
     '''
-    stru : T_STRUCT T_ID block
+    stru : T_STRUCT struct_id block
     '''
-    
+
+def p_struct_id(p):
+    '''
+    struct_id : T_ID
+    '''
+    p[0] = p[1]
+
 def p_id_token(p):
     '''
     id_token : T_ID
@@ -495,6 +506,7 @@ def p_proc(p):
          | do_while
          | for
          | assign
+         | assign_struct
          | condition
          | write
          | input
@@ -589,7 +601,9 @@ def p_do_while(p):
     quadList.insertJump('GOTOV', block['start'])
 
 def p_assign_simple(p):
-    'assign : id T_ASSIGN value'
+    '''
+    assign : id T_ASSIGN value
+    '''
     id, value = p[1], p[3]
     if id['type'] == 'FLOAT' and value['type'] == 'INT':
         quadList.insertAssign(value['id'], id['id'])
@@ -616,6 +630,11 @@ def p_assign_array_empty(p):
         raise SyntaxError
     #else:
         # generar cuadruplo de asignacion de arreglo
+
+def p_assign_struct(p):
+    '''
+    assign_struct : T_ID T_COLON T_ID T_ASSIGN value
+    '''
 
 def p_id_array(p):
     '''

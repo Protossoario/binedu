@@ -41,6 +41,14 @@ main
   X = 9;
   Y = x[3 / 1];
 
+  product apple;
+  product banana;
+
+  apple:weight = 3;
+  apple:price = 1.0;
+  banana:weight = 1;
+  banana:price = 0.5;
+
   input(A);
 
   myFunction();
@@ -75,6 +83,8 @@ main
   }
   else {
     Y = 2 + 2 * X;
+    apple:weight = apple:weight +  5;
+    apple:price = apple:price + 5.0;
   };
   int lol;
   if (X > Y) {
@@ -100,6 +110,8 @@ main
   else {
     int ayer;
     ayer = 23;
+    banana:weight = banana:weight + 3;
+    banana:price = banana:price + 3.0;
   };
 
   int why;
