@@ -384,9 +384,13 @@ def p_type(p):
          | T_STRING_ARR
          | T_INT_ARR
          | T_FLOAT_ARR
-         | struct_id
     '''
     p[0] = p[1].upper()
+
+def p_type_struct(p):
+    '''
+    type_struct : struct_id T_ID
+    '''
 
 def p_var_ids(p):
     '''
@@ -473,7 +477,13 @@ def p_structs(p):
 
 def p_stru(p):
     '''
-    stru : T_STRUCT struct_id block
+    stru : T_STRUCT struct_id T_BLOCK_START struct_declare T_BLOCK_END
+    '''
+
+def p_struct_declare(p):
+    '''
+    struct_declare : type T_ID T_STOP struct_declare
+                   | type T_ID T_STOP
     '''
 
 def p_struct_id(p):
@@ -524,6 +534,7 @@ def p_proc(p):
          | write
          | input
          | var_declare
+         | type_struct
          | call_func
          | return
          | graph
