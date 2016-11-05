@@ -206,9 +206,8 @@ class MemoryMap:
             return self.generateStringID()
         if type == 'BOOLEAN':
             return self.generateBooleanID()
-        # TODO : add type for structs
-        # else:
-        #     raise Exception
+        #else:
+            #raise Exception
 
     def generateIntID(self):
         self.int_count += 1
@@ -234,12 +233,26 @@ functions = MemoryMap(200000)
 class ConstantTable:
     def __init__(self):
         self.symbols = dict()
+        self.address_value = dict()
+
+    def castValue(self, type, value):
+        if type == 'INT':
+            return int(value)
+        elif type == 'FLOAT':
+            return float(value)
+        elif type == 'BOOLEAN':
+            return value == 'true'
+        elif type == 'STRING':
+            return value[1:-1]
+        else:
+            raise Exception
 
     def insert(self, token, type, memID):
-        tok = self.symbols[token]
+        tok = self.symbols.get(token)
         if not tok:
             self.symbols[token] = dict()
         self.symbols[token][type] = memID
+        self.address_value[memID] = self.castValue(type, token)
 
     def lookup(self, token, type):
         if token in self.symbols:
@@ -683,6 +696,7 @@ def p_value_string(p):
         p[0] = { 'type': type, 'id': memID }
     else:
         memID = constants.generateStringID()
+        constantTable.insert(p[1], type, memID)
         p[0] = { 'type': type, 'id': memID }
 
 def p_write(p):
@@ -709,6 +723,7 @@ def p_concat_const(p):
         p[0] = { 'type': type, 'id': memID }
     else:
         memID = constants.generateStringID()
+        constantTable.insert(p[1], type, memID)
         p[0] = { 'type': type, 'id': memID }
 
 def p_concat_expr(p):
@@ -722,6 +737,7 @@ def p_concat_op_const(p):
     memID = constantTable.lookup(string_const, type)
     if not memID:
         memID = constants.generateStringID()
+        constantTable.insert(string_const, type, memID)
     operationMemID = temps.generateStringID()
     quadList.insertOperation(op, memID, concat['id'], operationMemID)
     p[0] = { 'type': type, 'id': operationMemID }
@@ -802,6 +818,7 @@ def p_factor_int(p):
     memID = constantTable.lookup(int_const, type)
     if not memID:
         memID = constants.generateIntID()
+        constantTable.insert(int_const, type, memID)
     p[0] = { 'type': type, 'id': memID }
 
 def p_factor_float(p):
@@ -811,6 +828,7 @@ def p_factor_float(p):
     memID = constantTable.lookup(float_const, type)
     if not memID:
         memID = constants.generateFloatID()
+        constantTable.insert(float_const, type, memID)
     p[0] = { 'type': type, 'id': memID }
 
 def p_factor_boolean(p):
@@ -823,6 +841,7 @@ def p_factor_boolean(p):
     memID = constantTable.lookup(bool_const, type)
     if not memID:
         memID = constants.generateBooleanID()
+        constantTable.insert(bool_const, type, memID)
     p[0] = { 'type': type, 'id': memID }
 
 def p_factor_id(p):
@@ -857,3 +876,48 @@ else:
 
 with open(file_name) as file_obj:
     parser.parse(file_obj.read())
+
+# Ejecutar cuadruplos
+for quad in quadList.quadruples:
+    if quad[0] == 9:
+        print(constantTable.address_value.get(quad[1]))
+    elif quad[0] == 13:
+        value1, value2 = constantTable.address_value.get(quad[1]), constantTable.address_value.get(quad[2])
+        constantTable.address_value[quad[3]] = value1 + value2
+    elif quad[0] == 14:
+        value1, value2 = constantTable.address_value.get(quad[1]), constantTable.address_value.get(quad[2])
+        constantTable.address_value[quad[3]] = value1 - value2
+    elif quad[0] == 15:
+        value1, value2 = constantTable.address_value.get(quad[1]), constantTable.address_value.get(quad[2])
+        constantTable.address_value[quad[3]] = value1 / value2
+    elif quad[0] == 16:
+        value1, value2 = constantTable.address_value.get(quad[1]), constantTable.address_value.get(quad[2])
+        constantTable.address_value[quad[3]] = value1 * value2
+    # elif quad[0] == 17:
+    #     # TODO .
+    elif quad[0] == 18:
+        value1, value2 = constantTable.address_value.get(quad[1]), constantTable.address_value.get(quad[2])
+        constantTable.address_value[quad[3]] = value1 and value2
+    elif quad[0] == 19:
+        value1, value2 = constantTable.address_value.get(quad[1]), constantTable.address_value.get(quad[2])
+        constantTable.address_value[quad[3]] = value1 or value2
+    elif quad[0] == 20:
+        value1, value2 = constantTable.address_value.get(quad[1]), constantTable.address_value.get(quad[2])
+        constantTable.address_value[quad[3]] = value1 < value2
+    elif quad[0] == 21:
+        value1, value2 = constantTable.address_value.get(quad[1]), constantTable.address_value.get(quad[2])
+        constantTable.address_value[quad[3]] = value1 > value2
+    elif quad[0] == 22:
+        value1, value2 = constantTable.address_value.get(quad[1]), constantTable.address_value.get(quad[2])
+        constantTable.address_value[quad[3]] = value1 == value2
+    elif quad[0] == 23:
+        value1, value2 = constantTable.address_value.get(quad[1]), constantTable.address_value.get(quad[2])
+        constantTable.address_value[quad[3]] = value1 != value2
+    elif quad[0] == 25:
+        value = constantTable.address_value.get(quad[1])
+        if value is None:
+            print constantTable.address_value
+            print('Error: undefined variable %d.' % (quad[1]))
+            raise Exception
+        constantTable.address_value[quad[3]] = value
+print constantTable.address_value
