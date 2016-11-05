@@ -260,21 +260,34 @@ class ConstantTable:
         return None
 
 constantTable = ConstantTable()
-#
-# class StructTable:
-#     def __init__(self):
-#         self.symbols = dict()
-#
-#     def insert(self, struct_name, token, type):
-#         struct = self.symbols[struct_name]
-#         if not struct:
-#             self.symbols[token][type] = dict()
-#
-#     def lookup(self, struct_name):
-#         if struct_name in self.symbols:
-#             return self.symbols[struct_name].get()
-#
-# structTable = StructTable()
+
+class StructManager:
+    def __init__(self):
+        self.structs = dict()
+        self.instances = dict()
+
+    def createStruct(self, structID, attrList):
+        self.structs[structID] = attrList
+
+    def getAttributes(self, structID):
+        return self.structs[structID]
+
+    def createInstance(self, structInstanceID):
+        self.instances[structInstanceID] = dict()
+
+    def addInstanceAttribute(self, structInstanceID, attrType, attrID, memID):
+        self.instances[structInstanceID][attrID] = { 'type' : attrType, 'memID' : memID}
+
+    def getInstanceAttribute(self, structInstanceID, attrID):
+        instance = self.instances.get(structInstanceID)
+        if instance is None:
+            return None
+        return instance.get(attrID)
+
+    def getInstance(self, structInstanceID):
+        return self.instances.get(structInstanceID)
+
+structManager = StructManager()
 
 def p_program(p):
     '''
@@ -391,6 +404,14 @@ def p_type_struct(p):
     '''
     type_struct : struct_id T_ID
     '''
+    if structManager.getInstance(p[2]):
+        print('Semantic error: duplicated struct name %s in line #%d' %(p[2], lineNumber))
+        raise SyntaxError
+    attributeList = structManager.getAttributes(p[1])
+    structManager.createInstance(p[2])
+    for attribute in attributeList:
+        memID = variables.generateID(attribute['type'])
+        structManager.addInstanceAttribute(p[2], attribute['type'], attribute['id'], memID)
 
 def p_var_ids(p):
     '''
@@ -479,12 +500,20 @@ def p_stru(p):
     '''
     stru : T_STRUCT struct_id T_BLOCK_START struct_declare T_BLOCK_END
     '''
+    structManager.createStruct(p[2], p[4])
+
+def p_struct_declare_repeat(p):
+    '''
+    struct_declare : type T_ID T_STOP struct_declare
+    '''
+    declare_list = p[4]
+    p[0] = [ { 'type' : p[1], 'id' : p[2] } ] + declare_list
 
 def p_struct_declare(p):
     '''
-    struct_declare : type T_ID T_STOP struct_declare
-                   | type T_ID T_STOP
+    struct_declare : type T_ID T_STOP
     '''
+    p[0] = [ { 'type' : p[1], 'id' : p[2] } ]
 
 def p_struct_id(p):
     '''
@@ -932,3 +961,5 @@ for quad in quadList.quadruples:
             raise Exception
         constantTable.address_value[quad[3]] = value
 print constantTable.address_value
+print structManager.structs
+print structManager.instances
