@@ -61,6 +61,7 @@ main
         int Hugo;
         Hugo = 0;
         Hugo = Hugo + 1;
+        apple:weight = Hugo * apple:weight;
     };
   } while (P < 40);
 

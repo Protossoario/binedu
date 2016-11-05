@@ -896,6 +896,17 @@ def p_factor_boolean(p):
         constantTable.insert(bool_const, type, memID)
     p[0] = { 'type': type, 'id': memID }
 
+def p_factor_struct(p):
+    '''
+    factor : T_ID T_COLON T_ID
+    '''
+    instance_id, attribute_id = p[1], p[3]
+    attribute = structManager.getInstanceAttribute(instance_id, attribute_id)
+    if attribute['type'] == 'STRING':
+        print('Semantic Error: Attribute with ID "%s" and type %s cannot be used in this type of expression, in line #%d.' % (attribute_id, attribute['type'], lineNumber))
+        raise SyntaxError
+    p[0] = { 'type': attribute['type'], 'id': attribute['memID'] }
+
 def p_factor_id(p):
     'factor : id'
     id = p[1]
