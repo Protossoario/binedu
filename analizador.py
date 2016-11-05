@@ -688,6 +688,18 @@ def p_assign_struct(p):
     '''
     assign_struct : T_ID T_COLON T_ID T_ASSIGN value
     '''
+    instance_id, attribute_id, value = p[1], p[3], p[5]
+    attribute = structManager.getInstanceAttribute(instance_id, attribute_id)
+    if attribute is None:
+        print('Semantic Error: variable with ID "%s" is not defined in struct "%s" in line #%d.' % (attribute_id, instance_id, lineNumber))
+        raise SyntaxError
+    if attribute['type'] == 'FLOAT' and value['type'] == 'INT':
+        quadList.insertAssign(value['id'], attribute['memID'])
+    elif attribute['type'] != value['type']:
+        print('Semantic Error: attribute "%s" is type %s, but you are trying to assign a value of type %s in line #%d.' % (attribute['memID'], attribute['type'], value['type'], lineNumber))
+        raise SyntaxError
+    else:
+        quadList.insertAssign(value['id'], attribute['memID'])
 
 def p_id_array(p):
     '''
