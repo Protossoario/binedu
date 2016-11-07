@@ -52,6 +52,10 @@ main
   myFunction();
   myFunc2(A, B);
 
+  string myStr;
+  myStr = "Hola";
+  print(myStr);
+
   int P;
   P = 34;
   do {
@@ -70,7 +74,9 @@ main
       X = X + 1;
   };
 
-  if (A < B && 1 < 2) {
+  boolean test1;
+  test1 = A < B;
+  if (test1 && 1 < 2) {
       print("Oops!");
       int prueba;
       prueba = 2 + 2;

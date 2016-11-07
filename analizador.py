@@ -806,6 +806,9 @@ def p_expression_op(p):
     # Expresiones && y ||
     'expression : exp T_OPREL expression'
     exp, op, expression = p[1], p[2], p[3]
+    if exp['type'] != 'BOOLEAN' or expression['type'] != 'BOOLEAN':
+        print('Semantic Error: logic operands must be boolean type in line #%d.' % (lineNumber))
+        raise SyntaxError
     memID = temps.generateBooleanID()
     quadList.insertOperation(op, exp['id'], expression['id'], memID)
     p[0] = { 'type': 'BOOLEAN', 'id': memID }
@@ -818,6 +821,9 @@ def p_exp_op(p):
     # Expresiones de comparacion (<, >, !=, ==)
     'exp : e T_OPCOMP exp'
     e, op, exp = p[1], p[2], p[3]
+    if e['type'] != exp['type'] and ((e['type'] != 'INT' and e['type'] != 'FLOAT') or (exp['type'] != 'INT' and exp['type'] != 'FLOAT')):
+        print('Semantic Error: relational operands must be the same type in line #%d.' % (lineNumber))
+        raise SyntaxError
     memID = temps.generateBooleanID()
     quadList.insertOperation(op, e['id'], exp['id'], memID)
     p[0] = { 'type': 'BOOLEAN', 'id': memID }
@@ -829,7 +835,10 @@ def p_exp(p):
 def p_e_op(p):
     'e : term T_OPARIT e'
     term, op, e = p[1], p[2], p[3]
-    if term['type'] == 'FLOAT' or e['type'] == 'FLOAT':
+    if (term['type'] != 'INT' and term['type'] != 'FLOAT') or (e['type'] != 'INT' and e['type'] != 'FLOAT'):
+        print('Semantic Error: arithmetic operands must be of numeric type (int or float) in line #%d.' % (lineNumber))
+        raise SyntaxError
+    elif term['type'] == 'FLOAT' or e['type'] == 'FLOAT':
         type = 'FLOAT'
     else:
         type = e['type']
@@ -845,7 +854,7 @@ def p_term_op(p):
     'term : factor T_OPFACT term'
     factor, op, term = p[1], p[2], p[3]
     if (factor['type'] != 'INT' and factor['type'] != 'FLOAT') or (term['type'] != 'INT' and term['type'] != 'FLOAT'):
-        print('Semantic Error: arithmetic factors must be of numeric type (int or float) in line #%d.' % (lineNumber))
+        print('Semantic Error: arithmetic operands must be of numeric type (int or float) in line #%d.' % (lineNumber))
         raise SyntaxError
     elif factor['type'] == 'FLOAT' or term['type'] == 'FLOAT':
         type = 'FLOAT'
@@ -902,23 +911,13 @@ def p_factor_struct(p):
     '''
     instance_id, attribute_id = p[1], p[3]
     attribute = structManager.getInstanceAttribute(instance_id, attribute_id)
-    if attribute['type'] == 'STRING':
-        print('Semantic Error: attribute "%s" of type %s cannot be used in this type of expression, in line #%d.' % (attribute_id, attribute['type'], lineNumber))
-        raise SyntaxError
     p[0] = { 'type': attribute['type'], 'id': attribute['memID'] }
 
 def p_factor_id(p):
     'factor : id'
     id = p[1]
-    if id['type'] == 'INT[]':
-        p[0] = { 'type': 'INT', 'id': id['id'] }
-    elif id['type'] == 'FLOAT[]':
-        p[0] = { 'type': 'FLOAT', 'id': id['id'] }
-    elif id['type'] == 'BOOLEAN[]':
-        p[0] = { 'type': 'BOOLEAN', 'id': id['id'] }
-    elif id['type'].startswith('STRING'):
-        print('Semantic Error: variable with ID "%s" and type %s cannot be used in this type of expression, in line #%d.' % (id['id'], id['type'], lineNumber))
-        raise SyntaxError
+    if id['type'].endswith('[]'):
+        p[0] = { 'type': id['type'][:-2], 'id': id['id'] }
     else:
         p[0] = id
 
