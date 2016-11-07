@@ -405,7 +405,7 @@ def p_type_struct(p):
     type_struct : struct_id T_ID
     '''
     if structManager.getInstance(p[2]):
-        print('Semantic error: duplicated struct name %s in line #%d' %(p[2], lineNumber))
+        print('Semantic Error: duplicated struct instance name "%s" in line #%d' %(p[2], lineNumber))
         raise SyntaxError
     attributeList = structManager.getAttributes(p[1])
     structManager.createInstance(p[2])
@@ -691,12 +691,12 @@ def p_assign_struct(p):
     instance_id, attribute_id, value = p[1], p[3], p[5]
     attribute = structManager.getInstanceAttribute(instance_id, attribute_id)
     if attribute is None:
-        print('Semantic Error: variable with ID "%s" is not defined in struct "%s" in line #%d.' % (attribute_id, instance_id, lineNumber))
+        print('Semantic Error: attribute "%s" is not defined in for struct instance "%s" in line #%d.' % (attribute_id, instance_id, lineNumber))
         raise SyntaxError
     if attribute['type'] == 'FLOAT' and value['type'] == 'INT':
         quadList.insertAssign(value['id'], attribute['memID'])
     elif attribute['type'] != value['type']:
-        print('Semantic Error: attribute "%s" is type %s, but you are trying to assign a value of type %s in line #%d.' % (attribute['memID'], attribute['type'], value['type'], lineNumber))
+        print('Semantic Error: attribute "%s" is type %s, but you are trying to assign a value of type %s in line #%d.' % (attribute_id, attribute['type'], value['type'], lineNumber))
         raise SyntaxError
     else:
         quadList.insertAssign(value['id'], attribute['memID'])
@@ -903,7 +903,7 @@ def p_factor_struct(p):
     instance_id, attribute_id = p[1], p[3]
     attribute = structManager.getInstanceAttribute(instance_id, attribute_id)
     if attribute['type'] == 'STRING':
-        print('Semantic Error: Attribute with ID "%s" and type %s cannot be used in this type of expression, in line #%d.' % (attribute_id, attribute['type'], lineNumber))
+        print('Semantic Error: attribute "%s" of type %s cannot be used in this type of expression, in line #%d.' % (attribute_id, attribute['type'], lineNumber))
         raise SyntaxError
     p[0] = { 'type': attribute['type'], 'id': attribute['memID'] }
 
@@ -917,7 +917,7 @@ def p_factor_id(p):
     elif id['type'] == 'BOOLEAN[]':
         p[0] = { 'type': 'BOOLEAN', 'id': id['id'] }
     elif id['type'].startswith('STRING'):
-        print('Semantic Error: Variable with ID "%s" and type %s cannot be used in this type of expression, in line #%d.' % (id['id'], id['type'], lineNumber))
+        print('Semantic Error: variable with ID "%s" and type %s cannot be used in this type of expression, in line #%d.' % (id['id'], id['type'], lineNumber))
         raise SyntaxError
     else:
         p[0] = id
