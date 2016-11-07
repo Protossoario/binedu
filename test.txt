@@ -66,6 +66,7 @@ main
         Hugo = 0;
         Hugo = Hugo + 1;
         apple:weight = Hugo * apple:weight;
+        print("Apple weight: " . apple:weight);
     };
   } while (P < 40);
 

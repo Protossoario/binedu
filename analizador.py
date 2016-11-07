@@ -955,8 +955,9 @@ for quad in quadList.quadruples:
     elif quad[0] == 16:
         value1, value2 = constantTable.address_value.get(quad[1]), constantTable.address_value.get(quad[2])
         constantTable.address_value[quad[3]] = value1 * value2
-    # elif quad[0] == 17:
-    #     # TODO .
+    elif quad[0] == 17:
+        value1, value2 = constantTable.address_value.get(quad[1]), constantTable.address_value.get(quad[2])
+        constantTable.address_value[quad[3]] = str(value1) + str(value2)
     elif quad[0] == 18:
         value1, value2 = constantTable.address_value.get(quad[1]), constantTable.address_value.get(quad[2])
         constantTable.address_value[quad[3]] = value1 and value2
@@ -982,6 +983,6 @@ for quad in quadList.quadruples:
             print('Error: undefined variable %d.' % (quad[1]))
             raise Exception
         constantTable.address_value[quad[3]] = value
-print constantTable.address_value
-print structManager.structs
-print structManager.instances
+# print constantTable.address_value
+# print structManager.structs
+# print structManager.instances
