@@ -940,8 +940,22 @@ with open(file_name) as file_obj:
     parser.parse(file_obj.read())
 
 # Ejecutar cuadruplos
-for quad in quadList.quadruples:
-    if quad[0] == 9:
+i = 0
+lenQuads = len(quadList.quadruples)
+while i < lenQuads:
+    quad = quadList.quadruples[i]
+    i += 1
+    if quad[0] == 1:
+        i = int(quad[3])
+    elif quad[0] == 2:
+        condition = constantTable.address_value.get(quad[1])
+        if not condition:
+            i = int(quad[3])
+    elif quad[0] == 3:
+        condition = constantTable.address_value.get(quad[1])
+        if condition:
+            i = int(quad[3])
+    elif quad[0] == 9:
         print(constantTable.address_value.get(quad[1]))
     elif quad[0] == 13:
         value1, value2 = constantTable.address_value.get(quad[1]), constantTable.address_value.get(quad[2])

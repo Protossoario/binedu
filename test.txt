@@ -68,11 +68,12 @@ main
         apple:weight = Hugo * apple:weight;
         print("Apple weight: " . apple:weight);
     };
+    P = Q * 2;
   } while (P < 40);
 
   while (X > 3) {
       print(X);
-      X = X + 1;
+      X = X - 1;
   };
 
   boolean test1;
