@@ -285,9 +285,9 @@ class ConstantTable:
     def getAddressValue(self, address):
         if type(address) is str and address.startswith('*'):
             address = int(address[1:])
-            return self.address_value[self.address_value[address]]
+            return self.address_value.get(self.address_value[address])
         else:
-            return self.address_value[address]
+            return self.address_value.get(address)
 
     def updateAddressValue(self, address, value):
         if type(address) is str and address.startswith('*'):
@@ -410,6 +410,18 @@ def p_var_declare_array(p):
     else:
         memID = variables.generateArrayID(type, size)
         currentSymbolTable.insertArray(id, p[1], memID, size)
+
+def p_var_declare_matrix(p):
+    'var_declare : type T_ID T_ARR_START T_INT_CONST T_ARR_END T_ARR_START T_INT_CONST T_ARR_END'
+    type, id, rows, columns = p[1], p[2], int(p[4]), int(p[7])
+    symbol = currentSymbolTable.lookup(id)
+    if not symbol is None and symbol['type'] == type:
+        print('Semantic Error: duplicated variable of type %s with ID "%s" in line #%d.' % (type, id, lineNumber))
+        raise SyntaxError
+    else:
+        size = rows * columns
+        memID = variables.generateArrayID(type, size)
+        currentSymbolTable.insertArray(id, p[1], memID, [ rows, columns ])
 
 def p_var_declare(p):
     'var_declare : type var_ids'
@@ -591,6 +603,7 @@ def p_proc(p):
          | for
          | assign
          | assign_struct
+         | assign_matrix
          | condition
          | write
          | input
@@ -660,7 +673,6 @@ def p_while_token(p):
     p[0] = quadList.getListSize()
 
 def p_for(p):
-    # for each item X in myArray { };
     '''
     for : T_FOR T_EXP_START assign first_stop expression second_stop assign T_EXP_END block
     '''
@@ -701,8 +713,11 @@ def p_assign_simple(p):
 def p_assign_array(p):
     'assign : id T_ASSIGN T_ARR_START array T_ARR_END'
     id, array = p[1], p[4]
-    if id['type'] != array[0]['type'] and not (id['type'] == 'FLOAT' and array[0]['type'] == 'INT'):
-        print('Semantic Error: array is type %s, but you are trying to assign an array of type %s to it in line #%d.' % (id['type'], array['type'], lineNumber))
+    if 'size' not in id or type(id) != int:
+        print('Semantic Error: variable must be an array in line #%d.' % (lineNumber))
+        raise SyntaxError
+    elif id['type'] != array[0]['type'] and not (id['type'] == 'FLOAT' and array[0]['type'] == 'INT'):
+        print('Semantic Error: array is type %s, but you are trying to assign an array of type %s to it in line #%d.' % (id['type'], array[0]['type'], lineNumber))
         raise SyntaxError
     else:
         i = 0
@@ -713,6 +728,38 @@ def p_assign_array(p):
 def p_assign_array_empty(p):
     'assign : id T_ASSIGN T_ARR_START T_ARR_END'
     id = p[1]
+
+def p_assign_matrix(p):
+    'assign_matrix : id T_ASSIGN T_ARR_START arrays T_ARR_END'
+    id, arrays = p[1], p[4]
+    print(id.get('size'))
+    if not 'size' in id or len(id.get('size')) != 2:
+        print('Semantic Error: variable must be a matrix in line #%d.' % (lineNumber))
+        raise SyntaxError
+    elif id['type'] != arrays[0][0]['type'] and not (id['type'] == 'FLOAT' and arrays[0][0]['type'] == 'INT'):
+        print('Semantic Error: array is type %s, but you are trying to assign an array of type %s to it in line #%d.' % (id['type'], arrays[0][0]['type'], lineNumber))
+        raise SyntaxError
+    else:
+        i = 0
+        for array in arrays:
+            j = 0
+            for value in array:
+                offset = id['size'][1] * i + j
+                quadList.insertAssign(value['id'], id['id'] + offset)
+                j += 1
+            i += 1
+
+def p_arrays(p):
+    'arrays : T_ARR_START array T_ARR_END T_COMMA arrays'
+    array, arrays = p[2], p[5]
+    if array[0]['type'] != arrays[0][0]['type'] and not (array[0]['type'] == 'FLOAT' and arrays[0][0]['type'] == 'INT'):
+        print('Semantic Error: array type mismatch between %s and %s in line #%d.' % (array[0]['type'], arrays[0][0]['type'], lineNumber))
+        raise SyntaxError
+    p[0] = [ array ] + arrays
+
+def p_arrays_simple(p):
+    'arrays : T_ARR_START array T_ARR_END'
+    p[0] = [ p[2] ]
 
 def p_assign_struct(p):
     '''
@@ -747,8 +794,28 @@ def p_id_array(p):
     else:
         tempID = temps.generateIntID()
         quadList.insertQuad('VER', e['id'], symbol['size'])
-        quadList.insertOperation('ARRINDEX', symbol['memID'], e['id'], tempID)
-        p[0] = { 'type': symbol['type'], 'id': '*' + str(tempID) }
+        quadList.insertOperation('ARRSUM', symbol['memID'], e['id'], tempID)
+        p[0] = { 'type': symbol['type'], 'id': '*' + str(tempID), 'size': symbol['size'] }
+
+def p_id_matrix(p):
+    'id : T_ID T_ARR_START e T_ARR_END T_ARR_START e T_ARR_END'
+    symbol, rowInd, colInd = currentSymbolTable.lookup(p[1]), p[3], p[6]
+    if symbol is None:
+        print('Semantic Error: undeclared array with ID "%s" in line #%d.' % (p[1], lineNumber))
+        raise SyntaxError
+    elif not 'size' in symbol:
+        print('Semantic Error: variable with ID "%s" must be an array in line #%d.' % (p[1], lineNumber))
+        raise SyntaxError
+    elif not rowInd['type'] == 'INT' or not colInd['type'] == 'INT':
+        print('Semantic Error: array index for "%s" must be an integer in line #%d.' % (p[1], lineNumber))
+    else:
+        multID, sumID, pointerID = temps.generateIntID(), temps.generateIntID(), temps.generateIntID()
+        quadList.insertQuad('VER', rowInd['id'], symbol['size'][0])
+        quadList.insertQuad('VER', colInd['id'], symbol['size'][1])
+        quadList.insertOperation('ARRMULT', symbol['size'][1], rowInd['id'], multID)
+        quadList.insertOperation('+', multID, colInd['id'], sumID)
+        quadList.insertOperation('ARRSUM', symbol['memID'], sumID, pointerID)
+        p[0] = { 'type': symbol['type'], 'id': '*' + str(pointerID), 'size': symbol['size'] }
 
 def p_id(p):
     'id : T_ID'
@@ -756,6 +823,8 @@ def p_id(p):
     if symbol is None:
         print('Semantic Error: undeclared variable with ID "%s" in line #%d.' % (p[1], lineNumber))
         raise SyntaxError
+    elif 'size' in symbol:
+        p[0] = { 'type': symbol['type'], 'id': symbol['memID'], 'size': symbol['size'] }
     else:
         p[0] = { 'type': symbol['type'], 'id': symbol['memID'] }
 
@@ -1040,6 +1109,9 @@ while i < lenQuads:
     elif quad[0] == 28:
         address, index = quad[1], constantTable.getAddressValue(quad[2])
         constantTable.updateAddressValue(quad[3], address + index)
+    elif quad[0] == 29:
+        address, index = quad[1], constantTable.getAddressValue(quad[2])
+        constantTable.updateAddressValue(quad[3], address * index)
 # print constantTable.address_value
 # print structManager.structs
 # print structManager.instances

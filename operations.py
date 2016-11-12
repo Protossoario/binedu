@@ -26,5 +26,6 @@ ops = {
     '=': 25,
     'LOAD': 26,
     'VER': 27,
-    'ARRINDEX': 28,
+    'ARRSUM': 28,
+    'ARRMULT': 29
 }
