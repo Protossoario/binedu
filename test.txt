@@ -8,14 +8,18 @@ struct product {
 function myFunction() {
     float myFloat;
     myFloat = 1;
+    float myFloatArr[10];
+    int arr[5];
+    int arr2[2];
     do {
         print(myFloat);
         myFloat = myFloat + 1;
     } while (myFloat < 10);
 
     int i;
-    for (i = 0; i < 10; i = i + 1) {
-        print(i);
+    for (i = 0; i < 5; i = i + 1) {
+        arr[i] = i;
+        print(arr[i]);
     };
 
     load("file", X);
@@ -29,12 +33,10 @@ function myFunc2(int meep, int meep2) {
 
 main
 {
-  int[] x;
   float X;
   float Y;
   int A, B;
   print("Hello");
-  x = [];
   B = 7;
   A = B;
   X = 9;

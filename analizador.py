@@ -21,10 +21,6 @@ tokens = [
     'T_OPFACT',
     'T_OPCOMP',
     'T_OPREL',
-    'T_INT_ARR',
-    'T_FLOAT_ARR',
-    'T_BOOLEAN_ARR',
-    'T_STRING_ARR',
     'T_COLON'
 ]
 
@@ -73,11 +69,6 @@ t_T_OPFACT = r'[*/]'
 t_T_OPCOMP = r'[><]|!=|=='
 t_T_OPREL = r'&&|\|\|'
 
-t_T_INT_ARR = r'int\[\]'
-t_T_FLOAT_ARR = r'float\[\]'
-t_T_STRING_ARR = r'string\[\]'
-t_T_BOOLEAN_ARR = r'boolean\[\]'
-
 t_T_COLON = r'\:'
 
 t_ignore = ' \t'
@@ -112,6 +103,9 @@ class SymbolTable:
 
     def insert(self, id, type, memID):
         self.symbols[id] = { 'type': type, 'memID': memID }
+
+    def insertArray(self, id, type, memID, size):
+        self.symbols[id] = { 'type': type, 'memID': memID, 'size': size }
 
     def lookup(self, id):
         result = self.symbols.get(id)
@@ -179,7 +173,7 @@ class QuadrupleList:
     def printQuadruples(self):
         index = 0
         for quad in self.quadruples:
-            print('| %3d| %6s | %20s | %6s | %10s |' % (index, filterNone(quad[0]), filterNone(quad[1]), filterNone(quad[2]), filterNone(quad[3])))
+            print('| %3d| %3s | %7s | %7s | %7s |' % (index, filterNone(quad[0]), filterNone(quad[1]), filterNone(quad[2]), filterNone(quad[3])))
             index += 1
 
 quadList = QuadrupleList()
@@ -206,8 +200,17 @@ class MemoryMap:
             return self.generateStringID()
         if type == 'BOOLEAN':
             return self.generateBooleanID()
-        #else:
-            #raise Exception
+
+    def generateArrayID(self, type, size):
+        type = type.translate(None, '[]')
+        if type == 'INT':
+            return self.generateArrayIntID(size)
+        if type == 'FLOAT':
+            return self.generateArrayFloatID(size)
+        if type == 'STRING':
+            return self.generateArrayStringID(size)
+        if type == 'BOOLEAN':
+            return self.generateArrayBooleanID(size)
 
     def generateIntID(self):
         self.int_count += 1
@@ -224,6 +227,26 @@ class MemoryMap:
     def generateBooleanID(self):
         self.boolean_count += 1
         return self.boolean_count + self.boolean_start
+
+    def generateArrayIntID(self, size):
+        memID = self.int_count + 1
+        self.int_count += size
+        return memID + self.int_start
+
+    def generateArrayFloatID(self, size):
+        memID = self.float_count + 1
+        self.float_count += size
+        return memID + self.float_start
+
+    def generateArrayStringID(self, size):
+        memID = self.string_count + 1
+        self.string_count += size
+        return memID + self.string_start
+
+    def generateArrayBooleanID(self, size):
+        memID = self.boolean_count + 1
+        self.boolean_count += size
+        return memID + self.boolean_start
 
 variables = MemoryMap(50000)
 constants = MemoryMap(100000)
@@ -258,6 +281,20 @@ class ConstantTable:
         if token in self.symbols:
             return self.symbols[token].get(type)
         return None
+
+    def getAddressValue(self, address):
+        if type(address) is str and address.startswith('*'):
+            address = int(address[1:])
+            return self.address_value[self.address_value[address]]
+        else:
+            return self.address_value[address]
+
+    def updateAddressValue(self, address, value):
+        if type(address) is str and address.startswith('*'):
+            address = int(address[1:])
+            self.address_value[self.address_value[address]] = value
+        else:
+            self.address_value[address] = value
 
 constantTable = ConstantTable()
 
@@ -363,17 +400,16 @@ def p_param(p):
         memID = variables.generateID(type)
         currentSymbolTable.insert(id, type, memID)
 
-def p_var_declare_arr(p):
-    'var_declare : type T_ARR_START T_ARR_END var_ids'
-    type = p[1]
-    for id in p[4]:
-        symbol = currentSymbolTable.lookup(id)
-        if not symbol is None and symbol['type'] == type:
-            print('Semantic Error: duplicated variable of type %s with ID "%s" in line #%d.' % (type, id, lineNumber))
-            raise SyntaxError
-        else:
-            memID = variables.generateID(type)
-            currentSymbolTable.insert(id, p[1] + '[]', memID)
+def p_var_declare_array(p):
+    'var_declare : type T_ID T_ARR_START T_INT_CONST T_ARR_END'
+    type, id, size = p[1], p[2], int(p[4])
+    symbol = currentSymbolTable.lookup(id)
+    if not symbol is None and symbol['type'] == type:
+        print('Semantic Error: duplicated variable of type %s with ID "%s" in line #%d.' % (type, id, lineNumber))
+        raise SyntaxError
+    else:
+        memID = variables.generateArrayID(type, size)
+        currentSymbolTable.insertArray(id, p[1], memID, size)
 
 def p_var_declare(p):
     'var_declare : type var_ids'
@@ -393,10 +429,6 @@ def p_type(p):
          | T_STRING
          | T_INT
          | T_FLOAT
-         | T_BOOLEAN_ARR
-         | T_STRING_ARR
-         | T_INT_ARR
-         | T_FLOAT_ARR
     '''
     p[0] = p[1].upper()
 
@@ -669,20 +701,18 @@ def p_assign_simple(p):
 def p_assign_array(p):
     'assign : id T_ASSIGN T_ARR_START array T_ARR_END'
     id, array = p[1], p[4]
-    if id['type'] != array['type'] + '[]':
-        print('Semantic Error: variable with ID "%s" is type %s, but you are trying to assign an array of type %s to it in line #%d.' % (id['id'], id['type'], array['type'], lineNumber))
+    if id['type'] != array[0]['type'] and not (id['type'] == 'FLOAT' and array[0]['type'] == 'INT'):
+        print('Semantic Error: array is type %s, but you are trying to assign an array of type %s to it in line #%d.' % (id['type'], array['type'], lineNumber))
         raise SyntaxError
-    #else:
-        # generar cuadruplo de asignacion de arreglo
+    else:
+        i = 0
+        for value in array:
+            quadList.insertAssign(value['id'], id['id'] + i)
+            i += 1
 
 def p_assign_array_empty(p):
     'assign : id T_ASSIGN T_ARR_START T_ARR_END'
     id = p[1]
-    if not id['type'].endswith('[]'):
-        print('Semantic Error: variable with ID "%s" must be an array in line #%d.' % (id['id'], lineNumber))
-        raise SyntaxError
-    #else:
-        # generar cuadruplo de asignacion de arreglo
 
 def p_assign_struct(p):
     '''
@@ -705,15 +735,20 @@ def p_id_array(p):
     '''
     id : T_ID T_ARR_START e T_ARR_END
     '''
-    symbol = currentSymbolTable.lookup(p[1])
+    symbol, e = currentSymbolTable.lookup(p[1]), p[3]
     if symbol is None:
         print('Semantic Error: undeclared array with ID "%s" in line #%d.' % (p[1], lineNumber))
         raise SyntaxError
-    elif not symbol['type'].endswith('[]'):
+    elif not 'size' in symbol:
         print('Semantic Error: variable with ID "%s" must be an array in line #%d.' % (p[1], lineNumber))
         raise SyntaxError
+    elif not e['type'] == 'INT':
+        print('Semantic Error: array index for "%s" must be an integer in line #%d.' % (p[1], lineNumber))
     else:
-        p[0] = { 'type': symbol['type'], 'id': symbol['memID'] }
+        tempID = temps.generateIntID()
+        quadList.insertQuad('VER', e['id'], symbol['size'])
+        quadList.insertOperation('ARRINDEX', symbol['memID'], e['id'], tempID)
+        p[0] = { 'type': symbol['type'], 'id': '*' + str(tempID) }
 
 def p_id(p):
     'id : T_ID'
@@ -727,14 +762,14 @@ def p_id(p):
 def p_array(p):
     'array : value T_COMMA array'
     value, array = p[1], p[3]
-    if value['type'] != array['type']:
-        print('Semantic Error: type mismatch in array declaration between %s and %s values in line #%d.' % (value['type'], array['type'], lineNumber))
+    if value['type'] != array[0]['type']:
+        print('Semantic Error: type mismatch in array declaration between %s and %s values in line #%d.' % (value['type'], array[0]['type'], lineNumber))
         raise SyntaxError
-    p[0] = value
+    p[0] = [ value ] + array
 
 def p_array_value(p):
     'array : value'
-    p[0] = p[1]
+    p[0] = [ p[1] ]
 
 def p_value_expression(p):
     'value : expression'
@@ -948,55 +983,63 @@ while i < lenQuads:
     if quad[0] == 1:
         i = int(quad[3])
     elif quad[0] == 2:
-        condition = constantTable.address_value.get(quad[1])
+        condition = constantTable.getAddressValue(quad[1])
         if not condition:
             i = int(quad[3])
     elif quad[0] == 3:
-        condition = constantTable.address_value.get(quad[1])
+        condition = constantTable.getAddressValue(quad[1])
         if condition:
             i = int(quad[3])
     elif quad[0] == 9:
-        print(constantTable.address_value.get(quad[1]))
+        print(constantTable.getAddressValue(quad[1]))
     elif quad[0] == 13:
-        value1, value2 = constantTable.address_value.get(quad[1]), constantTable.address_value.get(quad[2])
+        value1, value2 = constantTable.getAddressValue(quad[1]), constantTable.getAddressValue(quad[2])
         constantTable.address_value[quad[3]] = value1 + value2
     elif quad[0] == 14:
-        value1, value2 = constantTable.address_value.get(quad[1]), constantTable.address_value.get(quad[2])
+        value1, value2 = constantTable.getAddressValue(quad[1]), constantTable.getAddressValue(quad[2])
         constantTable.address_value[quad[3]] = value1 - value2
     elif quad[0] == 15:
-        value1, value2 = constantTable.address_value.get(quad[1]), constantTable.address_value.get(quad[2])
+        value1, value2 = constantTable.getAddressValue(quad[1]), constantTable.getAddressValue(quad[2])
         constantTable.address_value[quad[3]] = value1 / value2
     elif quad[0] == 16:
-        value1, value2 = constantTable.address_value.get(quad[1]), constantTable.address_value.get(quad[2])
+        value1, value2 = constantTable.getAddressValue(quad[1]), constantTable.getAddressValue(quad[2])
         constantTable.address_value[quad[3]] = value1 * value2
     elif quad[0] == 17:
-        value1, value2 = constantTable.address_value.get(quad[1]), constantTable.address_value.get(quad[2])
+        value1, value2 = constantTable.getAddressValue(quad[1]), constantTable.getAddressValue(quad[2])
         constantTable.address_value[quad[3]] = str(value1) + str(value2)
     elif quad[0] == 18:
-        value1, value2 = constantTable.address_value.get(quad[1]), constantTable.address_value.get(quad[2])
+        value1, value2 = constantTable.getAddressValue(quad[1]), constantTable.getAddressValue(quad[2])
         constantTable.address_value[quad[3]] = value1 and value2
     elif quad[0] == 19:
-        value1, value2 = constantTable.address_value.get(quad[1]), constantTable.address_value.get(quad[2])
+        value1, value2 = constantTable.getAddressValue(quad[1]), constantTable.getAddressValue(quad[2])
         constantTable.address_value[quad[3]] = value1 or value2
     elif quad[0] == 20:
-        value1, value2 = constantTable.address_value.get(quad[1]), constantTable.address_value.get(quad[2])
+        value1, value2 = constantTable.getAddressValue(quad[1]), constantTable.getAddressValue(quad[2])
         constantTable.address_value[quad[3]] = value1 < value2
     elif quad[0] == 21:
-        value1, value2 = constantTable.address_value.get(quad[1]), constantTable.address_value.get(quad[2])
+        value1, value2 = constantTable.getAddressValue(quad[1]), constantTable.getAddressValue(quad[2])
         constantTable.address_value[quad[3]] = value1 > value2
     elif quad[0] == 22:
-        value1, value2 = constantTable.address_value.get(quad[1]), constantTable.address_value.get(quad[2])
+        value1, value2 = constantTable.getAddressValue(quad[1]), constantTable.getAddressValue(quad[2])
         constantTable.address_value[quad[3]] = value1 == value2
     elif quad[0] == 23:
-        value1, value2 = constantTable.address_value.get(quad[1]), constantTable.address_value.get(quad[2])
+        value1, value2 = constantTable.getAddressValue(quad[1]), constantTable.getAddressValue(quad[2])
         constantTable.address_value[quad[3]] = value1 != value2
     elif quad[0] == 25:
-        value = constantTable.address_value.get(quad[1])
+        value = constantTable.getAddressValue(quad[1])
         if value is None:
             print constantTable.address_value
             print('Error: undefined variable %d.' % (quad[1]))
             raise Exception
-        constantTable.address_value[quad[3]] = value
+        constantTable.updateAddressValue(quad[3], value)
+    elif quad[0] == 27:
+        value = constantTable.getAddressValue(quad[1])
+        if value < 0 or value >= quad[2]:
+            print('Error: undefined index %d.' % (value))
+            raise Exception
+    elif quad[0] == 28:
+        address, index = quad[1], constantTable.getAddressValue(quad[2])
+        constantTable.updateAddressValue(quad[3], address + index)
 # print constantTable.address_value
 # print structManager.structs
 # print structManager.instances
