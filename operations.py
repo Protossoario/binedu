@@ -27,5 +27,8 @@ ops = {
     'LOAD': 26,
     'VER': 27,
     'ARRSUM': 28,
-    'ARRMULT': 29
+    'ARRMULT': 29,
+    'COPYRET': 30,
+    '<=': 31,
+    '>=': 32,
 }

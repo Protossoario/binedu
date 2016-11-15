@@ -1,6 +1,17 @@
 program TestFunction;
-function myFunc(int A) {
+
+void myFunc(int A) {
     print("Valor de A = " . A);
+}
+
+int fibonacci(int N) {
+    if (N <= 0) {
+        return 0;
+    }
+    else if (N < 3) {
+        return 1;
+    };
+    return fibonacci(N - 1) + fibonacci(N - 2);
 }
 
 main {
@@ -8,4 +19,5 @@ main {
     B = 11;
     print("Valor de B = " . B);
     myFunc(B * 2);
+    print("Fibonacci(6) = " . fibonacci(6));
 }

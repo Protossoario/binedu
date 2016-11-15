@@ -35,7 +35,6 @@ reserved = {
     'struct': 'T_STRUCT',
     'print': 'T_PRINT',
     'for': 'T_FOR',
-    'function': 'T_FUNCTION',
     'print': 'T_PRINT',
     'graph': 'T_GRAPH',
     'load': 'T_LOAD',
@@ -45,7 +44,8 @@ reserved = {
     'true': 'T_TRUE',
     'false': 'T_FALSE',
     'main': 'T_MAIN',
-    'return': 'T_RETURN'
+    'return': 'T_RETURN',
+    'void': 'T_VOID',
 }
 
 tokens += reserved.values()
@@ -66,7 +66,7 @@ t_T_INT_CONST = r'[+-]?[0-9]+'
 t_T_STRING_CONST = r'\".*\"'
 t_T_OPARIT = r'[+-]'
 t_T_OPFACT = r'[*/]'
-t_T_OPCOMP = r'[><]|!=|=='
+t_T_OPCOMP = r'!=|==|<=|>=|<|>'
 t_T_OPREL = r'&&|\|\|'
 
 t_T_COLON = r'\:'
@@ -103,6 +103,9 @@ class SymbolTable:
 
     def insert(self, id, type, memID):
         self.symbols[id] = { 'type': type, 'memID': memID }
+
+    def insertFunction(self, id, type, memID):
+        self.symbols[id] = { 'type': 'FUNCTION', 'memID': memID, 'returnType': type }
 
     def insertArray(self, id, type, memID, size):
         self.symbols[id] = { 'type': type, 'memID': memID, 'size': size }
@@ -305,8 +308,8 @@ class VirtualStack:
         self.constants = dict()
         self.retValue = None
 
-    def createFunction(self, funcMemID, begin):
-        self.functions[funcMemID] = begin
+    def createFunction(self, funcMemID, funcData):
+        self.functions[funcMemID] = funcData
 
     def lookupFunction(self, memID):
         func = self.functions.get(memID)
@@ -316,18 +319,19 @@ class VirtualStack:
         return func
 
     def createActivationRecord(self, funcMemID):
-        self.begin = self.lookupFunction(funcMemID)
+        self.funcData = self.lookupFunction(funcMemID)
         self.newStack = self.getCurrentStack().copy()
         self.newStack['funcMemID'] = funcMemID
 
-    def setParam(self, memID, paramID):
+    def setParam(self, memID, index):
+        paramID = self.funcData['params'][index - 1]
         self.newStack[paramID] = self.getAddressValue(memID)
 
     def replaceActivationRecord(self, quad):
         currStack = self.getCurrentStack()
         currStack['quad'] = quad
         self.stack.append(self.newStack)
-        return self.begin
+        return self.funcData['start']
 
     def setReturnValue(self, memID):
         self.retValue = self.getAddressValue(memID)
@@ -351,7 +355,7 @@ class VirtualStack:
         stack = self.getCurrentStack()
         if type(address) is str and address.startswith('*'):
             address = int(address[1:])
-            return stack.get(self.address_value[address])
+            return stack.get(stack[address])
         elif (address > 100000 and address < 150000):
             return self.constants.get(address)
         else:
@@ -401,34 +405,39 @@ def p_functions(p):
 
 def p_func(p):
     '''
-    func : func_token T_ID T_EXP_START parameters T_EXP_END block
-         | func_token T_ID T_EXP_START T_EXP_END block
+    func : function_signature T_EXP_START parameters T_EXP_END block
+         | function_signature T_EXP_START T_EXP_END block
     '''
-    type = 'FUNCTION'
-    lineNumber, id, block = p[1], p[2], p[len(p) - 1]
-    assert not block is None, "Incorrectly parsed function '%s' block start quadruple, line #%d." % (id, lineNumber)
+    pLen = len(p)
+    func_sign, block = p[1], p[pLen - 1]
+    assert not block is None, "Incorrectly parsed function '%s' block start quadruple, line #%d." % (id, func_sign['lineNumber'])
+    if pLen == 6:
+        params = p[3]
+    else:
+        params = list()
+    virtualStack.createFunction(func_sign['memID'], { 'start': block['start'], 'params': params })
+    if quadList.getLastQuad()[0] != 7:
+        quadList.insertJump('RET')
+
+def p_function_signature(p):
+    'function_signature : function_type T_ID'
+    type, id = p[1], p[2]
     symbol = currentSymbolTable.lookup(id)
-    if not symbol is None and symbol['type'] == type:
+    if not symbol is None and symbol['type'] == 'FUNCTION':
         print('Semantic Error: duplicated function with ID "%s" in line #%d.' % (id, lineNumber))
         raise SyntaxError
     else:
         memID = functions.generateIntID()
-        currentSymbolTable.insert(id, type, memID)
-        virtualStack.createFunction(memID, block['start'])
-    if quadList.getLastQuad()[0] != 'RET' :
-        quadList.insertJump('RET')
-
-def p_func_token(p):
-    '''
-    func_token : T_FUNCTION
-    '''
-    p[0] = lineNumber
+        currentSymbolTable.insertFunction(id, type, memID)
+    p[0] = { 'memID': memID, 'lineNumber': lineNumber }
 
 def p_parameters(p):
-    '''
-    parameters : param T_COMMA parameters
-               | param
-    '''
+    'parameters : param T_COMMA parameters'
+    p[0] = [ p[1] ] + p[3]
+
+def p_parameters_single(p):
+    'parameters : param'
+    p[0] = [ p[1] ]
 
 def p_param(p):
     '''
@@ -442,6 +451,7 @@ def p_param(p):
     else:
         memID = variables.generateID(type)
         currentSymbolTable.insert(id, type, memID)
+        p[0] = memID
 
 def p_var_declare_array(p):
     'var_declare : type T_ID T_ARR_START T_INT_CONST T_ARR_END'
@@ -477,6 +487,13 @@ def p_var_declare(p):
         else:
             memID = variables.generateID(type)
             currentSymbolTable.insert(id, type, memID)
+
+def p_function_type(p):
+    '''
+    function_type : type
+                  | T_VOID
+    '''
+    p[0] = p[1]
 
 def p_type(p):
     '''
@@ -549,19 +566,21 @@ def p_call_func(p):
     '''
     call_func : id_token T_EXP_START T_EXP_END
     '''
-    id = p[1]
-    quadList.insertQuad('GOSUB', id)
+    symbol = p[1]
+    quadList.insertQuad('GOSUB', symbol['memID'])
+    p[0] = symbol
 
 def p_call_func_args(p):
     '''
     call_func : id_token T_EXP_START args T_EXP_END
     '''
-    id, args = p[1], p[3]
+    symbol, args = p[1], p[3]
     count = 1
     for param in args :
         quadList.insertQuad('PARAM', param['id'], None, count)
         count += 1
-    quadList.insertQuad('GOSUB', id)
+    quadList.insertQuad('GOSUB', symbol['memID'])
+    p[0] = symbol
 
 def p_return(p):
     '''
@@ -618,7 +637,7 @@ def p_id_token(p):
         print('Semantic Error: "%s" is not a function in line #%d.' % (id, lineNumber))
         raise SyntaxError
     quadList.insertQuad('ERA', symbol['memID'])
-    p[0] = symbol['memID']
+    p[0] = symbol
 
 def p_args(p):
     '''
@@ -967,7 +986,7 @@ def p_expresion(p):
     p[0] = p[1]
 
 def p_exp_op(p):
-    # Expresiones de comparacion (<, >, !=, ==)
+    # Expresiones de comparacion (<, >, !=, ==, <=, >=)
     'exp : e T_OPCOMP exp'
     e, op, exp = p[1], p[2], p[3]
     if e['type'] != exp['type'] and ((e['type'] != 'INT' and e['type'] != 'FLOAT') or (exp['type'] != 'INT' and exp['type'] != 'FLOAT')):
@@ -1073,6 +1092,15 @@ def p_factor_id(p):
     else:
         p[0] = id
 
+def p_factor_func(p):
+    'factor : call_func'
+    symbol = p[1]
+    if symbol is None or not 'returnType' in symbol:
+        print("Semantic Error: '%s' is not a function in line #%d." % (id, lineNumber))
+    tempID = temps.generateID(symbol['returnType'])
+    quadList.insertQuad('COPYRET', symbol['memID'], None, tempID)
+    p[0] = { 'type': symbol['returnType'], 'id': tempID }
+
 def p_error(p):
     if p:
         global lineNumber
@@ -1111,7 +1139,7 @@ while i < lenQuads:
         virtualStack.createActivationRecord(quad[1])
     elif quad[0] == 5:
         # Guardar el cuadruplo al que debemos regresar, y obtener el cuadruplo del inicio de la funcion
-        i = virtualStack.replaceActivationRecord(i + 1)
+        i = virtualStack.replaceActivationRecord(i)
     elif quad[0] == 6:
         virtualStack.setParam(quad[1], quad[3])
     elif quad[0] == 7:
@@ -1124,7 +1152,7 @@ while i < lenQuads:
         value1, value2 = virtualStack.getAddressValue(quad[1]), virtualStack.getAddressValue(quad[2])
         virtualStack.updateAddressValue(quad[3], value1 + value2)
     elif quad[0] == 14:
-        value1, value2 = constantTable.getAddressValue(quad[1]), virtualStack.getAddressValue(quad[2])
+        value1, value2 = virtualStack.getAddressValue(quad[1]), virtualStack.getAddressValue(quad[2])
         virtualStack.updateAddressValue(quad[3], value1 - value2)
     elif quad[0] == 15:
         value1, value2 = virtualStack.getAddressValue(quad[1]), virtualStack.getAddressValue(quad[2])
@@ -1156,7 +1184,6 @@ while i < lenQuads:
     elif quad[0] == 25:
         value = virtualStack.getAddressValue(quad[1])
         if value is None:
-            print virtualStack.getCurrentStack()
             print('Error: undefined variable in quadruple #%d.' % (i))
             raise Exception
         virtualStack.updateAddressValue(quad[3], value)
@@ -1171,3 +1198,12 @@ while i < lenQuads:
     elif quad[0] == 29:
         address, index = quad[1], virtualStack.getAddressValue(quad[2])
         virtualStack.updateAddressValue(quad[3], address * index)
+    elif quad[0] == 30:
+        retValue = virtualStack.getAddressValue(quad[1])
+        virtualStack.updateAddressValue(quad[3], retValue)
+    elif quad[0] == 31:
+        value1, value2 = virtualStack.getAddressValue(quad[1]), virtualStack.getAddressValue(quad[2])
+        virtualStack.updateAddressValue(quad[3], value1 <= value2)
+    elif quad[0] == 32:
+        value1, value2 = virtualStack.getAddressValue(quad[1]), virtualStack.getAddressValue(quad[2])
+        virtualStack.updateAddressValue(quad[3], value1 >= value2)
