@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import sys
 import ply.lex as lex
 
 tokens = [
@@ -86,8 +87,8 @@ def t_endl(t):
     lineNumber += 1
 
 def t_error(t):
-    print("Illegal character '%s'" % t.value[0])
-    t.lexer.skip(1)
+    print("Illegal character '%s' in line #%d." % (t.value[0], lineNumber))
+    sys.exit()
 
 lexer = lex.lex()
 
@@ -425,7 +426,7 @@ def p_function_signature(p):
     symbol = currentSymbolTable.lookup(id)
     if not symbol is None and symbol['type'] == 'FUNCTION':
         print('Semantic Error: duplicated function with ID "%s" in line #%d.' % (id, lineNumber))
-        raise SyntaxError
+        sys.exit()
     else:
         memID = functions.generateIntID()
         currentSymbolTable.insertFunction(id, type, memID)
@@ -447,7 +448,7 @@ def p_param(p):
     symbol = currentSymbolTable.lookup(id)
     if not symbol is None and symbol['type'] == type:
         print('Semantic Error: duplicated variable of type %s with ID "%s" in line #%d.' % (type, id, lineNumber))
-        raise SyntaxError
+        sys.exit()
     else:
         memID = variables.generateID(type)
         currentSymbolTable.insert(id, type, memID)
@@ -459,7 +460,7 @@ def p_var_declare_array(p):
     symbol = currentSymbolTable.lookup(id)
     if not symbol is None and symbol['type'] == type:
         print('Semantic Error: duplicated variable of type %s with ID "%s" in line #%d.' % (type, id, lineNumber))
-        raise SyntaxError
+        sys.exit()
     else:
         memID = variables.generateArrayID(type, size)
         currentSymbolTable.insertArray(id, p[1], memID, size)
@@ -470,7 +471,7 @@ def p_var_declare_matrix(p):
     symbol = currentSymbolTable.lookup(id)
     if not symbol is None and symbol['type'] == type:
         print('Semantic Error: duplicated variable of type %s with ID "%s" in line #%d.' % (type, id, lineNumber))
-        raise SyntaxError
+        sys.exit()
     else:
         size = rows * columns
         memID = variables.generateArrayID(type, size)
@@ -483,7 +484,7 @@ def p_var_declare(p):
         symbol = currentSymbolTable.lookup(id)
         if not symbol is None and symbol['type'] == type:
             print('Semantic Error: duplicated variable of type %s with ID "%s" in line #%d.' % (type, id, lineNumber))
-            raise SyntaxError
+            sys.exit()
         else:
             memID = variables.generateID(type)
             currentSymbolTable.insert(id, type, memID)
@@ -510,7 +511,7 @@ def p_type_struct(p):
     '''
     if structManager.getInstance(p[2]):
         print('Semantic Error: duplicated struct instance name "%s" in line #%d' %(p[2], lineNumber))
-        raise SyntaxError
+        sys.exit()
     attributeList = structManager.getAttributes(p[1])
     structManager.createInstance(p[2])
     for attribute in attributeList:
@@ -635,7 +636,7 @@ def p_id_token(p):
     symbol = currentSymbolTable.lookup(id)
     if symbol is None or symbol['type'] != 'FUNCTION' :
         print('Semantic Error: "%s" is not a function in line #%d.' % (id, lineNumber))
-        raise SyntaxError
+        sys.exit()
     quadList.insertQuad('ERA', symbol['memID'])
     p[0] = symbol
 
@@ -767,8 +768,8 @@ def p_assign_simple(p):
     if id['type'] == 'FLOAT' and value['type'] == 'INT':
         quadList.insertAssign(value['id'], id['id'])
     elif id['type'] != value['type']:
-        print('Semantic Error: variable with ID "%s" is type %s, but you are trying to assign a value of type %s in line #%d.' % (id['id'], id['type'], value['type'], lineNumber))
-        raise SyntaxError
+        print('Semantic Error: variable "%s" is type %s, but you are trying to assign a value of type %s in line #%d.' % (id['token'], id['type'], value['type'], lineNumber))
+        sys.exit()
     else:
         quadList.insertAssign(value['id'], id['id'])
 
@@ -776,11 +777,14 @@ def p_assign_array(p):
     'assign : id T_ASSIGN T_ARR_START array T_ARR_END'
     id, array = p[1], p[4]
     if 'size' not in id or type(id) != int:
-        print('Semantic Error: variable must be an array in line #%d.' % (lineNumber))
-        raise SyntaxError
+        print('Semantic Error: variable "%s" must be an array in line #%d.' % (id['token'], lineNumber))
+        sys.exit()
+    elif id['size'] != len(array):
+        print('Semantic Error: cannot assign an array of size %d to "%s" in line #%d.' % (len(array), id['token'], lineNumber))
+        sys.exit()
     elif id['type'] != array[0]['type'] and not (id['type'] == 'FLOAT' and array[0]['type'] == 'INT'):
         print('Semantic Error: array is type %s, but you are trying to assign an array of type %s to it in line #%d.' % (id['type'], array[0]['type'], lineNumber))
-        raise SyntaxError
+        sys.exit()
     else:
         i = 0
         for value in array:
@@ -790,17 +794,26 @@ def p_assign_array(p):
 def p_assign_array_empty(p):
     'assign : id T_ASSIGN T_ARR_START T_ARR_END'
     id = p[1]
+    if 'size' not in id or type(id) != int:
+        print('Semantic Error: variable "%s" must be an array in line #%d.' % (id['token'], lineNumber))
+        sys.exit()
+    elif id['size'] != 0:
+        print('Semantic Error: cannot assign an empty array to "%s" in line #%d.' % (id['token'], lineNumber))
+        sys.exit()
 
 def p_assign_matrix(p):
     'assign_matrix : id T_ASSIGN T_ARR_START arrays T_ARR_END'
     id, arrays = p[1], p[4]
-    print(id.get('size'))
+    matrixLen = len(sum(arrays, []))
     if not 'size' in id or len(id.get('size')) != 2:
-        print('Semantic Error: variable must be a matrix in line #%d.' % (lineNumber))
-        raise SyntaxError
+        print('Semantic Error: variable "%s" must be a matrix in line #%d.' % (id['token'], lineNumber))
+        sys.exit()
+    elif id['size'] != matrixLen:
+        print('Semantic Error: cannot assign an matrix of %d elements to "%s" in line #%d.' % (matrixLen, id['token'], lineNumber))
+        sys.exit()
     elif id['type'] != arrays[0][0]['type'] and not (id['type'] == 'FLOAT' and arrays[0][0]['type'] == 'INT'):
         print('Semantic Error: array is type %s, but you are trying to assign an array of type %s to it in line #%d.' % (id['type'], arrays[0][0]['type'], lineNumber))
-        raise SyntaxError
+        sys.exit()
     else:
         i = 0
         for array in arrays:
@@ -816,7 +829,7 @@ def p_arrays(p):
     array, arrays = p[2], p[5]
     if array[0]['type'] != arrays[0][0]['type'] and not (array[0]['type'] == 'FLOAT' and arrays[0][0]['type'] == 'INT'):
         print('Semantic Error: array type mismatch between %s and %s in line #%d.' % (array[0]['type'], arrays[0][0]['type'], lineNumber))
-        raise SyntaxError
+        sys.exit()
     p[0] = [ array ] + arrays
 
 def p_arrays_simple(p):
@@ -831,12 +844,12 @@ def p_assign_struct(p):
     attribute = structManager.getInstanceAttribute(instance_id, attribute_id)
     if attribute is None:
         print('Semantic Error: attribute "%s" is not defined in for struct instance "%s" in line #%d.' % (attribute_id, instance_id, lineNumber))
-        raise SyntaxError
+        sys.exit()
     if attribute['type'] == 'FLOAT' and value['type'] == 'INT':
         quadList.insertAssign(value['id'], attribute['memID'])
     elif attribute['type'] != value['type']:
         print('Semantic Error: attribute "%s" is type %s, but you are trying to assign a value of type %s in line #%d.' % (attribute_id, attribute['type'], value['type'], lineNumber))
-        raise SyntaxError
+        sys.exit()
     else:
         quadList.insertAssign(value['id'], attribute['memID'])
 
@@ -847,27 +860,27 @@ def p_id_array(p):
     symbol, e = currentSymbolTable.lookup(p[1]), p[3]
     if symbol is None:
         print('Semantic Error: undeclared array with ID "%s" in line #%d.' % (p[1], lineNumber))
-        raise SyntaxError
+        sys.exit()
     elif not 'size' in symbol:
         print('Semantic Error: variable with ID "%s" must be an array in line #%d.' % (p[1], lineNumber))
-        raise SyntaxError
+        sys.exit()
     elif not e['type'] == 'INT':
         print('Semantic Error: array index for "%s" must be an integer in line #%d.' % (p[1], lineNumber))
     else:
         tempID = temps.generateIntID()
         quadList.insertQuad('VER', e['id'], symbol['size'])
         quadList.insertOperation('ARRSUM', symbol['memID'], e['id'], tempID)
-        p[0] = { 'type': symbol['type'], 'id': '*' + str(tempID), 'size': symbol['size'] }
+        p[0] = { 'type': symbol['type'], 'id': '*' + str(tempID), 'size': symbol['size'], 'token': p[1] }
 
 def p_id_matrix(p):
     'id : T_ID T_ARR_START e T_ARR_END T_ARR_START e T_ARR_END'
     symbol, rowInd, colInd = currentSymbolTable.lookup(p[1]), p[3], p[6]
     if symbol is None:
         print('Semantic Error: undeclared array with ID "%s" in line #%d.' % (p[1], lineNumber))
-        raise SyntaxError
+        sys.exit()
     elif not 'size' in symbol:
         print('Semantic Error: variable with ID "%s" must be an array in line #%d.' % (p[1], lineNumber))
-        raise SyntaxError
+        sys.exit()
     elif not rowInd['type'] == 'INT' or not colInd['type'] == 'INT':
         print('Semantic Error: array index for "%s" must be an integer in line #%d.' % (p[1], lineNumber))
     else:
@@ -877,25 +890,25 @@ def p_id_matrix(p):
         quadList.insertOperation('ARRMULT', symbol['size'][1], rowInd['id'], multID)
         quadList.insertOperation('+', multID, colInd['id'], sumID)
         quadList.insertOperation('ARRSUM', symbol['memID'], sumID, pointerID)
-        p[0] = { 'type': symbol['type'], 'id': '*' + str(pointerID), 'size': symbol['size'] }
+        p[0] = { 'type': symbol['type'], 'id': '*' + str(pointerID), 'size': symbol['size'], 'token': p[1] }
 
 def p_id(p):
     'id : T_ID'
     symbol = currentSymbolTable.lookup(p[1])
     if symbol is None:
         print('Semantic Error: undeclared variable with ID "%s" in line #%d.' % (p[1], lineNumber))
-        raise SyntaxError
+        sys.exit()
     elif 'size' in symbol:
-        p[0] = { 'type': symbol['type'], 'id': symbol['memID'], 'size': symbol['size'] }
+        p[0] = { 'type': symbol['type'], 'id': symbol['memID'], 'size': symbol['size'], 'token': p[1] }
     else:
-        p[0] = { 'type': symbol['type'], 'id': symbol['memID'] }
+        p[0] = { 'type': symbol['type'], 'id': symbol['memID'], 'token': p[1] }
 
 def p_array(p):
     'array : value T_COMMA array'
     value, array = p[1], p[3]
     if value['type'] != array[0]['type']:
         print('Semantic Error: type mismatch in array declaration between %s and %s values in line #%d.' % (value['type'], array[0]['type'], lineNumber))
-        raise SyntaxError
+        sys.exit()
     p[0] = [ value ] + array
 
 def p_array_value(p):
@@ -976,7 +989,7 @@ def p_expression_op(p):
     exp, op, expression = p[1], p[2], p[3]
     if exp['type'] != 'BOOLEAN' or expression['type'] != 'BOOLEAN':
         print('Semantic Error: logic operands must be boolean type in line #%d.' % (lineNumber))
-        raise SyntaxError
+        sys.exit()
     memID = temps.generateBooleanID()
     quadList.insertOperation(op, exp['id'], expression['id'], memID)
     p[0] = { 'type': 'BOOLEAN', 'id': memID }
@@ -991,7 +1004,7 @@ def p_exp_op(p):
     e, op, exp = p[1], p[2], p[3]
     if e['type'] != exp['type'] and ((e['type'] != 'INT' and e['type'] != 'FLOAT') or (exp['type'] != 'INT' and exp['type'] != 'FLOAT')):
         print('Semantic Error: relational operands must be the same type in line #%d.' % (lineNumber))
-        raise SyntaxError
+        sys.exit()
     memID = temps.generateBooleanID()
     quadList.insertOperation(op, e['id'], exp['id'], memID)
     p[0] = { 'type': 'BOOLEAN', 'id': memID }
@@ -1005,7 +1018,7 @@ def p_e_op(p):
     term, op, e = p[1], p[2], p[3]
     if (term['type'] != 'INT' and term['type'] != 'FLOAT') or (e['type'] != 'INT' and e['type'] != 'FLOAT'):
         print('Semantic Error: arithmetic operands must be of numeric type (int or float) in line #%d.' % (lineNumber))
-        raise SyntaxError
+        sys.exit()
     elif term['type'] == 'FLOAT' or e['type'] == 'FLOAT':
         type = 'FLOAT'
     else:
@@ -1023,7 +1036,7 @@ def p_term_op(p):
     factor, op, term = p[1], p[2], p[3]
     if (factor['type'] != 'INT' and factor['type'] != 'FLOAT') or (term['type'] != 'INT' and term['type'] != 'FLOAT'):
         print('Semantic Error: arithmetic operands must be of numeric type (int or float) in line #%d.' % (lineNumber))
-        raise SyntaxError
+        sys.exit()
     elif factor['type'] == 'FLOAT' or term['type'] == 'FLOAT':
         type = 'FLOAT'
     else:
@@ -1107,10 +1120,10 @@ def p_error(p):
         print('Syntax error at token "%s" in line #%d.' % (p.value, lineNumber))
     else:
         print('Syntax error at EOF.')
+    sys.exit()
 
 parser = yacc.yacc()
 
-import sys
 if len(sys.argv) < 2:
     file_name = raw_input('Nombre del archivo de entrada: ')
 else:
