@@ -1,0 +1,11 @@
+program TestFunction;
+function myFunc(int A) {
+    print("Valor de A = " . A);
+}
+
+main {
+    int B;
+    B = 11;
+    print("Valor de B = " . B);
+    myFunc(B * 2);
+}

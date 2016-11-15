@@ -256,45 +256,17 @@ functions = MemoryMap(200000)
 class ConstantTable:
     def __init__(self):
         self.symbols = dict()
-        self.address_value = dict()
-
-    def castValue(self, type, value):
-        if type == 'INT':
-            return int(value)
-        elif type == 'FLOAT':
-            return float(value)
-        elif type == 'BOOLEAN':
-            return value == 'true'
-        elif type == 'STRING':
-            return value[1:-1]
-        else:
-            raise Exception
 
     def insert(self, token, type, memID):
         tok = self.symbols.get(token)
         if not tok:
             self.symbols[token] = dict()
         self.symbols[token][type] = memID
-        self.address_value[memID] = self.castValue(type, token)
 
     def lookup(self, token, type):
         if token in self.symbols:
             return self.symbols[token].get(type)
         return None
-
-    def getAddressValue(self, address):
-        if type(address) is str and address.startswith('*'):
-            address = int(address[1:])
-            return self.address_value.get(self.address_value[address])
-        else:
-            return self.address_value.get(address)
-
-    def updateAddressValue(self, address, value):
-        if type(address) is str and address.startswith('*'):
-            address = int(address[1:])
-            self.address_value[self.address_value[address]] = value
-        else:
-            self.address_value[address] = value
 
 constantTable = ConstantTable()
 
@@ -325,6 +297,75 @@ class StructManager:
         return self.instances.get(structInstanceID)
 
 structManager = StructManager()
+
+class VirtualStack:
+    def __init__(self):
+        self.functions = dict()
+        self.stack = list()
+        self.constants = dict()
+        self.retValue = None
+
+    def createFunction(self, funcMemID, begin):
+        self.functions[funcMemID] = begin
+
+    def lookupFunction(self, memID):
+        func = self.functions.get(memID)
+        if func is None:
+            print('Error: function not found %d.' % (memID))
+            raise Exception
+        return func
+
+    def createActivationRecord(self, funcMemID):
+        self.begin = self.lookupFunction(funcMemID)
+        self.newStack = self.getCurrentStack().copy()
+        self.newStack['funcMemID'] = funcMemID
+
+    def setParam(self, memID, paramID):
+        self.newStack[paramID] = self.getAddressValue(memID)
+
+    def replaceActivationRecord(self, quad):
+        currStack = self.getCurrentStack()
+        currStack['quad'] = quad
+        self.stack.append(self.newStack)
+        return self.begin
+
+    def setReturnValue(self, memID):
+        self.retValue = self.getAddressValue(memID)
+
+    def endActivationRecord(self):
+        lastStack = self.stack.pop()
+        assert len(self.stack) > 0, "Virtual memory stack is empty!"
+        currStack = self.getCurrentStack()
+        currStack[lastStack['funcMemID']] = self.retValue
+        return currStack['quad']
+
+    def getCurrentStack(self):
+        if len(self.stack) == 0:
+            self.stack.append(dict())
+        return self.stack[-1]
+
+    def insertConstantValue(self, id, val):
+        self.constants[id] = val
+
+    def getAddressValue(self, address):
+        stack = self.getCurrentStack()
+        if type(address) is str and address.startswith('*'):
+            address = int(address[1:])
+            return stack.get(self.address_value[address])
+        elif (address > 100000 and address < 150000):
+            return self.constants.get(address)
+        else:
+            return stack.get(address)
+
+    def updateAddressValue(self, address, value):
+        stack = self.getCurrentStack()
+        if type(address) is str and address.startswith('*'):
+            address = int(address[1:])
+            stack[stack[address]] = value
+        else:
+            stack[address] = value
+
+virtualStack = VirtualStack()
 
 def p_program(p):
     '''
@@ -364,7 +405,8 @@ def p_func(p):
          | func_token T_ID T_EXP_START T_EXP_END block
     '''
     type = 'FUNCTION'
-    lineNumber, id = p[1], p[2]
+    lineNumber, id, block = p[1], p[2], p[len(p) - 1]
+    assert not block is None, "Incorrectly parsed function '%s' block start quadruple, line #%d." % (id, lineNumber)
     symbol = currentSymbolTable.lookup(id)
     if not symbol is None and symbol['type'] == type:
         print('Semantic Error: duplicated function with ID "%s" in line #%d.' % (id, lineNumber))
@@ -372,6 +414,7 @@ def p_func(p):
     else:
         memID = functions.generateIntID()
         currentSymbolTable.insert(id, type, memID)
+        virtualStack.createFunction(memID, block['start'])
     if quadList.getLastQuad()[0] != 'RET' :
         quadList.insertJump('RET')
 
@@ -853,6 +896,7 @@ def p_value_string(p):
     else:
         memID = constants.generateStringID()
         constantTable.insert(p[1], type, memID)
+        virtualStack.insertConstantValue(memID, p[1][1:-1])
         p[0] = { 'type': type, 'id': memID }
 
 def p_write(p):
@@ -880,6 +924,7 @@ def p_concat_const(p):
     else:
         memID = constants.generateStringID()
         constantTable.insert(p[1], type, memID)
+        virtualStack.insertConstantValue(memID, p[1][1:-1])
         p[0] = { 'type': type, 'id': memID }
 
 def p_concat_expr(p):
@@ -894,10 +939,10 @@ def p_concat_op_const(p):
     if not memID:
         memID = constants.generateStringID()
         constantTable.insert(string_const, type, memID)
+        virtualStack.insertConstantValue(memID, string_const[1:-1])
     operationMemID = temps.generateStringID()
     quadList.insertOperation(op, memID, concat['id'], operationMemID)
     p[0] = { 'type': type, 'id': operationMemID }
-
 
 def p_concat_op_expr(p):
     'concat : expression T_CONCAT concat'
@@ -984,6 +1029,7 @@ def p_factor_int(p):
     if not memID:
         memID = constants.generateIntID()
         constantTable.insert(int_const, type, memID)
+        virtualStack.insertConstantValue(memID, int(int_const))
     p[0] = { 'type': type, 'id': memID }
 
 def p_factor_float(p):
@@ -994,6 +1040,7 @@ def p_factor_float(p):
     if not memID:
         memID = constants.generateFloatID()
         constantTable.insert(float_const, type, memID)
+        virtualStack.insertConstantValue(memID, float(float_const))
     p[0] = { 'type': type, 'id': memID }
 
 def p_factor_boolean(p):
@@ -1007,6 +1054,7 @@ def p_factor_boolean(p):
     if not memID:
         memID = constants.generateBooleanID()
         constantTable.insert(bool_const, type, memID)
+        virtualStack.insertConstantValue(memID, bool_const == 'true')
     p[0] = { 'type': type, 'id': memID }
 
 def p_factor_struct(p):
@@ -1052,66 +1100,74 @@ while i < lenQuads:
     if quad[0] == 1:
         i = int(quad[3])
     elif quad[0] == 2:
-        condition = constantTable.getAddressValue(quad[1])
+        condition = virtualStack.getAddressValue(quad[1])
         if not condition:
             i = int(quad[3])
     elif quad[0] == 3:
-        condition = constantTable.getAddressValue(quad[1])
+        condition = virtualStack.getAddressValue(quad[1])
         if condition:
             i = int(quad[3])
+    elif quad[0] == 4:
+        virtualStack.createActivationRecord(quad[1])
+    elif quad[0] == 5:
+        # Guardar el cuadruplo al que debemos regresar, y obtener el cuadruplo del inicio de la funcion
+        i = virtualStack.replaceActivationRecord(i + 1)
+    elif quad[0] == 6:
+        virtualStack.setParam(quad[1], quad[3])
+    elif quad[0] == 7:
+        i = virtualStack.endActivationRecord()
+    elif quad[0] == 8:
+        virtualStack.setReturnValue(quad[1])
     elif quad[0] == 9:
-        print(constantTable.getAddressValue(quad[1]))
+        print(virtualStack.getAddressValue(quad[1]))
     elif quad[0] == 13:
-        value1, value2 = constantTable.getAddressValue(quad[1]), constantTable.getAddressValue(quad[2])
-        constantTable.address_value[quad[3]] = value1 + value2
+        value1, value2 = virtualStack.getAddressValue(quad[1]), virtualStack.getAddressValue(quad[2])
+        virtualStack.updateAddressValue(quad[3], value1 + value2)
     elif quad[0] == 14:
-        value1, value2 = constantTable.getAddressValue(quad[1]), constantTable.getAddressValue(quad[2])
-        constantTable.address_value[quad[3]] = value1 - value2
+        value1, value2 = constantTable.getAddressValue(quad[1]), virtualStack.getAddressValue(quad[2])
+        virtualStack.updateAddressValue(quad[3], value1 - value2)
     elif quad[0] == 15:
-        value1, value2 = constantTable.getAddressValue(quad[1]), constantTable.getAddressValue(quad[2])
-        constantTable.address_value[quad[3]] = value1 / value2
+        value1, value2 = virtualStack.getAddressValue(quad[1]), virtualStack.getAddressValue(quad[2])
+        virtualStack.updateAddressValue(quad[3], value1 / value2)
     elif quad[0] == 16:
-        value1, value2 = constantTable.getAddressValue(quad[1]), constantTable.getAddressValue(quad[2])
-        constantTable.address_value[quad[3]] = value1 * value2
+        value1, value2 = virtualStack.getAddressValue(quad[1]), virtualStack.getAddressValue(quad[2])
+        virtualStack.updateAddressValue(quad[3], value1 * value2)
     elif quad[0] == 17:
-        value1, value2 = constantTable.getAddressValue(quad[1]), constantTable.getAddressValue(quad[2])
-        constantTable.address_value[quad[3]] = str(value1) + str(value2)
+        value1, value2 = virtualStack.getAddressValue(quad[1]), virtualStack.getAddressValue(quad[2])
+        virtualStack.updateAddressValue(quad[3], str(value1) + str(value2))
     elif quad[0] == 18:
-        value1, value2 = constantTable.getAddressValue(quad[1]), constantTable.getAddressValue(quad[2])
-        constantTable.address_value[quad[3]] = value1 and value2
+        value1, value2 = virtualStack.getAddressValue(quad[1]), virtualStack.getAddressValue(quad[2])
+        virtualStack.updateAddressValue(quad[3], value1 and value2)
     elif quad[0] == 19:
-        value1, value2 = constantTable.getAddressValue(quad[1]), constantTable.getAddressValue(quad[2])
-        constantTable.address_value[quad[3]] = value1 or value2
+        value1, value2 = virtualStack.getAddressValue(quad[1]), virtualStack.getAddressValue(quad[2])
+        virtualStack.updateAddressValue(quad[3], value1 or value2)
     elif quad[0] == 20:
-        value1, value2 = constantTable.getAddressValue(quad[1]), constantTable.getAddressValue(quad[2])
-        constantTable.address_value[quad[3]] = value1 < value2
+        value1, value2 = virtualStack.getAddressValue(quad[1]), virtualStack.getAddressValue(quad[2])
+        virtualStack.updateAddressValue(quad[3], value1 < value2)
     elif quad[0] == 21:
-        value1, value2 = constantTable.getAddressValue(quad[1]), constantTable.getAddressValue(quad[2])
-        constantTable.address_value[quad[3]] = value1 > value2
+        value1, value2 = virtualStack.getAddressValue(quad[1]), virtualStack.getAddressValue(quad[2])
+        virtualStack.updateAddressValue(quad[3], value1 > value2)
     elif quad[0] == 22:
-        value1, value2 = constantTable.getAddressValue(quad[1]), constantTable.getAddressValue(quad[2])
-        constantTable.address_value[quad[3]] = value1 == value2
+        value1, value2 = virtualStack.getAddressValue(quad[1]), virtualStack.getAddressValue(quad[2])
+        virtualStack.updateAddressValue(quad[3], value1 == value2)
     elif quad[0] == 23:
-        value1, value2 = constantTable.getAddressValue(quad[1]), constantTable.getAddressValue(quad[2])
-        constantTable.address_value[quad[3]] = value1 != value2
+        value1, value2 = virtualStack.getAddressValue(quad[1]), virtualStack.getAddressValue(quad[2])
+        virtualStack.updateAddressValue(quad[3], value1 != value2)
     elif quad[0] == 25:
-        value = constantTable.getAddressValue(quad[1])
+        value = virtualStack.getAddressValue(quad[1])
         if value is None:
-            print constantTable.address_value
-            print('Error: undefined variable %d.' % (quad[1]))
+            print virtualStack.getCurrentStack()
+            print('Error: undefined variable in quadruple #%d.' % (i))
             raise Exception
-        constantTable.updateAddressValue(quad[3], value)
+        virtualStack.updateAddressValue(quad[3], value)
     elif quad[0] == 27:
-        value = constantTable.getAddressValue(quad[1])
+        value = virtualStack.getAddressValue(quad[1])
         if value < 0 or value >= quad[2]:
-            print('Error: undefined index %d.' % (value))
+            print('Error: undefined index %d in quadruple #%d.' % (value, i))
             raise Exception
     elif quad[0] == 28:
-        address, index = quad[1], constantTable.getAddressValue(quad[2])
-        constantTable.updateAddressValue(quad[3], address + index)
+        address, index = quad[1], virtualStack.getAddressValue(quad[2])
+        virtualStack.updateAddressValue(quad[3], address + index)
     elif quad[0] == 29:
-        address, index = quad[1], constantTable.getAddressValue(quad[2])
-        constantTable.updateAddressValue(quad[3], address * index)
-# print constantTable.address_value
-# print structManager.structs
-# print structManager.instances
+        address, index = quad[1], virtualStack.getAddressValue(quad[2])
+        virtualStack.updateAddressValue(quad[3], address * index)
