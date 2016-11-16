@@ -278,18 +278,22 @@ class StructManager:
     def __init__(self):
         self.structs = dict()
         self.instances = dict()
+        self.arrays = dict()
 
     def createStruct(self, structID, attrList):
         self.structs[structID] = attrList
 
     def getAttributes(self, structID):
-        return self.structs[structID]
+        return self.structs.get(structID)
 
     def createInstance(self, structInstanceID):
         self.instances[structInstanceID] = dict()
 
+    def createArray(self, structInstanceID, size):
+        self.arrays[structInstanceID] = { 'size': size, 'attributes': dict() }
+
     def addInstanceAttribute(self, structInstanceID, attrType, attrID, memID):
-        self.instances[structInstanceID][attrID] = { 'type' : attrType, 'memID' : memID}
+        self.instances[structInstanceID][attrID] = { 'type': attrType, 'memID': memID}
 
     def getInstanceAttribute(self, structInstanceID, attrID):
         instance = self.instances.get(structInstanceID)
@@ -299,6 +303,18 @@ class StructManager:
 
     def getInstance(self, structInstanceID):
         return self.instances.get(structInstanceID)
+
+    def addArrayAttribute(self, structInstanceID, attrType, attrID, memID):
+        self.arrays[structInstanceID]['attributes'][attrID] = { 'type': attrType, 'memID': memID }
+
+    def getArray(self, structInstanceID):
+        return self.arrays.get(structInstanceID)
+
+    def getArrayAtrribute(self, structInstanceID, attrID):
+        array = self.arrays.get(structInstanceID)
+        if array is None:
+            return None
+        return array['attributes'].get(attrID)
 
 structManager = StructManager()
 
@@ -427,9 +443,8 @@ def p_function_signature(p):
     if not symbol is None and symbol['type'] == 'FUNCTION':
         print('Semantic Error: duplicated function with ID "%s" in line #%d.' % (id, lineNumber))
         sys.exit()
-    else:
-        memID = functions.generateIntID()
-        currentSymbolTable.insertFunction(id, type, memID)
+    memID = functions.generateIntID()
+    currentSymbolTable.insertFunction(id, type, memID)
     p[0] = { 'memID': memID, 'lineNumber': lineNumber }
 
 def p_parameters(p):
@@ -449,10 +464,9 @@ def p_param(p):
     if not symbol is None and symbol['type'] == type:
         print('Semantic Error: duplicated variable of type %s with ID "%s" in line #%d.' % (type, id, lineNumber))
         sys.exit()
-    else:
-        memID = variables.generateID(type)
-        currentSymbolTable.insert(id, type, memID)
-        p[0] = memID
+    memID = variables.generateID(type)
+    currentSymbolTable.insert(id, type, memID)
+    p[0] = memID
 
 def p_var_declare_array(p):
     'var_declare : type T_ID T_ARR_START T_INT_CONST T_ARR_END'
@@ -461,9 +475,8 @@ def p_var_declare_array(p):
     if not symbol is None and symbol['type'] == type:
         print('Semantic Error: duplicated variable of type %s with ID "%s" in line #%d.' % (type, id, lineNumber))
         sys.exit()
-    else:
-        memID = variables.generateArrayID(type, size)
-        currentSymbolTable.insertArray(id, p[1], memID, size)
+    memID = variables.generateArrayID(type, size)
+    currentSymbolTable.insertArray(id, p[1], memID, size)
 
 def p_var_declare_matrix(p):
     'var_declare : type T_ID T_ARR_START T_INT_CONST T_ARR_END T_ARR_START T_INT_CONST T_ARR_END'
@@ -472,10 +485,24 @@ def p_var_declare_matrix(p):
     if not symbol is None and symbol['type'] == type:
         print('Semantic Error: duplicated variable of type %s with ID "%s" in line #%d.' % (type, id, lineNumber))
         sys.exit()
-    else:
-        size = rows * columns
-        memID = variables.generateArrayID(type, size)
-        currentSymbolTable.insertArray(id, p[1], memID, [ rows, columns ])
+    size = rows * columns
+    memID = variables.generateArrayID(type, size)
+    currentSymbolTable.insertArray(id, p[1], memID, [ rows, columns ])
+
+def p_var_declare_struct_array(p):
+    'var_declare : T_STRUCT T_ID T_ID T_ARR_START T_INT_CONST T_ARR_END'
+    structID, arrID, size = p[2], p[3], int(p[5])
+    attributes = structManager.getAttributes(structID)
+    if attributes is None:
+        print('Semantic Error: undeclared struct type "%s" in line #%d.' % (structID, lineNumber))
+        sys.exit()
+    elif not structManager.getArray(arrID) is None:
+        print('Semantic Error: duplicated struct array "%s" in line #%d.' % (structID, lineNumber))
+        sys.exit()
+    structManager.createArray(arrID, size)
+    for attribute in attributes:
+        memID = variables.generateArrayID(attribute['type'], size)
+        structManager.addArrayAttribute(arrID, attribute['type'], attribute['id'], memID)
 
 def p_var_declare(p):
     'var_declare : type var_ids'
@@ -485,9 +512,8 @@ def p_var_declare(p):
         if not symbol is None and symbol['type'] == type:
             print('Semantic Error: duplicated variable of type %s with ID "%s" in line #%d.' % (type, id, lineNumber))
             sys.exit()
-        else:
-            memID = variables.generateID(type)
-            currentSymbolTable.insert(id, type, memID)
+        memID = variables.generateID(type)
+        currentSymbolTable.insert(id, type, memID)
 
 def p_function_type(p):
     '''
@@ -509,14 +535,15 @@ def p_type_struct(p):
     '''
     type_struct : struct_id T_ID
     '''
-    if structManager.getInstance(p[2]):
-        print('Semantic Error: duplicated struct instance name "%s" in line #%d' %(p[2], lineNumber))
+    structID = p[2]
+    if structManager.getInstance(structID):
+        print('Semantic Error: duplicated struct instance name "%s" in line #%d' %(structID, lineNumber))
         sys.exit()
     attributeList = structManager.getAttributes(p[1])
-    structManager.createInstance(p[2])
+    structManager.createInstance(structID)
     for attribute in attributeList:
         memID = variables.generateID(attribute['type'])
-        structManager.addInstanceAttribute(p[2], attribute['type'], attribute['id'], memID)
+        structManager.addInstanceAttribute(structID, attribute['type'], attribute['id'], memID)
 
 def p_var_ids(p):
     '''
@@ -853,6 +880,25 @@ def p_assign_struct(p):
     else:
         quadList.insertAssign(value['id'], attribute['memID'])
 
+def p_id_array_struct(p):
+    'id : T_ID T_ARR_START e T_ARR_END T_COLON T_ID'
+    structID, e, attrID = p[1], p[3], p[6]
+    struct = structManager.getArray(structID)
+    if struct is None:
+        print('Semantic Error: variable "%s" must be a struct array in line #%d.' % (structID, lineNumber))
+        sys.exit()
+    elif not e['type'] == 'INT':
+        print('Semantic Error: array index for "%s" must be an integer in line #%d.' % (structID, lineNumber))
+        sys.exit()
+    attr = struct['attributes'].get(attrID)
+    if attr is None:
+        print('Semantic Error: struct "%s" has no attribute "%s" in line #%d.' % (structID, attrID, lineNumber))
+        sys.exit()
+    tempID = temps.generateIntID()
+    quadList.insertQuad('VER', e['id'], struct['size'])
+    quadList.insertOperation('ARRSUM', attr['memID'], e['id'], tempID)
+    p[0] = { 'type': attr['type'], 'id': '*' + str(tempID), 'size': struct['size'], 'token': attrID }
+
 def p_id_array(p):
     '''
     id : T_ID T_ARR_START e T_ARR_END
@@ -866,11 +912,11 @@ def p_id_array(p):
         sys.exit()
     elif not e['type'] == 'INT':
         print('Semantic Error: array index for "%s" must be an integer in line #%d.' % (p[1], lineNumber))
-    else:
-        tempID = temps.generateIntID()
-        quadList.insertQuad('VER', e['id'], symbol['size'])
-        quadList.insertOperation('ARRSUM', symbol['memID'], e['id'], tempID)
-        p[0] = { 'type': symbol['type'], 'id': '*' + str(tempID), 'size': symbol['size'], 'token': p[1] }
+        sys.exit()
+    tempID = temps.generateIntID()
+    quadList.insertQuad('VER', e['id'], symbol['size'])
+    quadList.insertOperation('ARRSUM', symbol['memID'], e['id'], tempID)
+    p[0] = { 'type': symbol['type'], 'id': '*' + str(tempID), 'size': symbol['size'], 'token': p[1] }
 
 def p_id_matrix(p):
     'id : T_ID T_ARR_START e T_ARR_END T_ARR_START e T_ARR_END'
@@ -883,14 +929,14 @@ def p_id_matrix(p):
         sys.exit()
     elif not rowInd['type'] == 'INT' or not colInd['type'] == 'INT':
         print('Semantic Error: array index for "%s" must be an integer in line #%d.' % (p[1], lineNumber))
-    else:
-        multID, sumID, pointerID = temps.generateIntID(), temps.generateIntID(), temps.generateIntID()
-        quadList.insertQuad('VER', rowInd['id'], symbol['size'][0])
-        quadList.insertQuad('VER', colInd['id'], symbol['size'][1])
-        quadList.insertOperation('ARRMULT', symbol['size'][1], rowInd['id'], multID)
-        quadList.insertOperation('+', multID, colInd['id'], sumID)
-        quadList.insertOperation('ARRSUM', symbol['memID'], sumID, pointerID)
-        p[0] = { 'type': symbol['type'], 'id': '*' + str(pointerID), 'size': symbol['size'], 'token': p[1] }
+        sys.exit()
+    multID, sumID, pointerID = temps.generateIntID(), temps.generateIntID(), temps.generateIntID()
+    quadList.insertQuad('VER', rowInd['id'], symbol['size'][0])
+    quadList.insertQuad('VER', colInd['id'], symbol['size'][1])
+    quadList.insertOperation('ARRMULT', symbol['size'][1], rowInd['id'], multID)
+    quadList.insertOperation('+', multID, colInd['id'], sumID)
+    quadList.insertOperation('ARRSUM', symbol['memID'], sumID, pointerID)
+    p[0] = { 'type': symbol['type'], 'id': '*' + str(pointerID), 'size': symbol['size'], 'token': p[1] }
 
 def p_id(p):
     'id : T_ID'

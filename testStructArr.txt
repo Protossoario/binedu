@@ -1,0 +1,19 @@
+program TestStructArr;
+struct Apple {
+    float weight;
+    string name;
+}
+main {
+    struct Apple apples[10];
+    struct Apple apples2[2];
+    apples[0]:weight = 0.4;
+    apples[1]:name = "Steve";
+    apples[0]:name = "Bob";
+    float B;
+    B = apples[0]:weight;
+    print(B);
+    print(apples[0]:weight);
+    print("apples[0]:name = " . apples[0]:name);
+    apples2[1]:weight = 1.5;
+    print(apples2[1]:weight * apples[0]:weight);
+}
