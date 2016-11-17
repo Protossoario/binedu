@@ -21,9 +21,6 @@ void myFunction() {
         arr[i] = i;
         print(arr[i]);
     };
-
-    load("file", X);
-    graph(X);
 }
 
 int myFunc2(int meep, int meep2) {
@@ -49,6 +46,11 @@ main
   banana:weight = 1;
   banana:price = 0.5;
 
+  struct product apples[10];
+  load("file", apples);
+  graph(apples);
+
+  print("Input value of A:");
   input(A);
 
   myFunction();

@@ -989,9 +989,37 @@ def p_input(p):
 
 def p_graph(p):
     'graph : T_GRAPH T_EXP_START T_ID T_EXP_END'
+    structID = p[3]
+    struct = structManager.getArray(structID)
+    if struct is None:
+        print('Semantic Error: variable "%s" must be a struct array in line #%d.' % (structID, lineNumber))
+        sys.exit()
+    quadList.insertQuad('GRAPH', struct['size'], len(struct['attributes']))
+    for attrID in struct['attributes']:
+        attribute = struct['attributes'][attrID]
+        nameMemID = constantTable.lookup(attrID, 'STRING')
+        if nameMemID is None:
+            nameMemID = constants.generateStringID()
+            constantTable.insert(attrID, 'STRING', nameMemID)
+            virtualStack.insertConstantValue(nameMemID, attrID[1:-1])
+        quadList.insertQuad('GATTR', attribute['memID'], nameMemID)
 
 def p_load(p):
     'load : T_LOAD T_EXP_START T_STRING_CONST T_COMMA T_ID T_EXP_END'
+    string_const, structID = p[3], p[5]
+    memID = constantTable.lookup(string_const, 'STRING')
+    if memID is None:
+        memID = constants.generateStringID()
+        constantTable.insert(string_const, 'STRING', memID)
+        virtualStack.insertConstantValue(memID, string_const[1:-1])
+    struct = structManager.getArray(structID)
+    if struct is None:
+        print('Semantic Error: variable "%s" must be a struct array in line #%d.' % (structID, lineNumber))
+        sys.exit()
+    quadList.insertQuad('LOAD', memID, struct['size'], len(struct['attributes']))
+    for attrID in struct['attributes']:
+        attribute = struct['attributes'][attrID]
+        quadList.insertQuad('LATTR', attribute['memID'])
 
 def p_concat_const(p):
     'concat : T_STRING_CONST'
@@ -1207,6 +1235,9 @@ while i < lenQuads:
         virtualStack.setReturnValue(quad[1])
     elif quad[0] == 9:
         print(virtualStack.getAddressValue(quad[1]))
+    elif quad[0] == 10:
+        value = input()
+        virtualStack.updateAddressValue(quad[1], value)
     elif quad[0] == 13:
         value1, value2 = virtualStack.getAddressValue(quad[1]), virtualStack.getAddressValue(quad[2])
         virtualStack.updateAddressValue(quad[3], value1 + value2)
