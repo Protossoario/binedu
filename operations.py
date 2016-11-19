@@ -35,4 +35,5 @@ ops = {
     'LABELS': 34,
     'GRAPH': 35,
     'BARGRAPH': 36,
+    'PIEGRAPH': 37,
 }

@@ -12,7 +12,7 @@ struct OtherFile {
 main {
     struct File rows[10];
     load("testFile.csv", rows);
-    bar(rows);
+    pie(rows);
     struct OtherFile totals[5];
     load("testTotals.csv", totals);
     line(totals);

@@ -48,6 +48,7 @@ reserved = {
     'void': 'T_VOID',
     'line': 'T_LINE',
     'bar': 'T_BAR',
+    'pie': 'T_PIE',
 }
 
 tokens += reserved.values()
@@ -446,6 +447,7 @@ class VirtualStack:
 
     def prepareGraph(self, dataSize, attributes):
         self.plotDataSize = dataSize
+        self.plotAttributeNum = attributes
         self.plotLabels = list()
         self.plotLegends = list()
         self.plotData = list()
@@ -515,6 +517,28 @@ class VirtualStack:
         plt.xlabel(self.plotLabelsName)
         plt.title(self.getAddressValue(graphTitle))
         plt.tick_params(bottom='off', top='off', right='off', left='off', pad=1.5)
+        plt.show()
+
+    def displayPieGraph(self, graphTitle):
+        fig = plt.figure()
+        ax = fig.gca()
+
+        index = 0
+        radius = 1.0 / self.plotAttributeNum
+        offset = 0.5
+        for data in self.plotData:
+            ax.pie(data, labels=self.plotLabels, colors=self.colors, autopct='%1.1f%%', startangle=90, radius=radius, center=(index + radius * index, 0.5), shadow=True)
+            index += 1
+
+        ax.set_xlim((-0.5, 1.5))
+        ax.set_ylim((-0.65, 1.5))
+        ax.set_aspect('equal')
+
+        ind = np.arange(len(self.plotLegends))
+        plt.xticks(ind + radius * ind, self.plotLegends)
+
+        plt.title(self.getAddressValue(graphTitle))
+        plt.tick_params(bottom='off', top='off', right='off', left='off')
         plt.show()
 
 virtualStack = VirtualStack()
@@ -1124,6 +1148,7 @@ def p_graph_struct(p):
     '''
     graph : T_LINE T_EXP_START T_ID T_EXP_END
           | T_BAR T_EXP_START T_ID T_EXP_END
+          | T_PIE T_EXP_START T_ID T_EXP_END
     '''
     op, structID = p[1], p[3]
     struct = structManager.getArray(structID)
@@ -1131,7 +1156,7 @@ def p_graph_struct(p):
         print('Semantic Error: variable "%s" must be a struct array in line #%d.' % (structID, lineNumber))
         sys.exit()
 
-    lineAttributes = list()
+    graphAttributes = list()
     labels = None
     for attrID in struct['attributes']:
         attribute = struct['attributes'][attrID]
@@ -1144,19 +1169,19 @@ def p_graph_struct(p):
             virtualStack.insertConstantValue(nameMemID, attrID)
         attribute['nameMemID'] = nameMemID
         if attribute['type'] == 'INT' or attribute['type'] == 'FLOAT':
-            lineAttributes.append(attribute)
+            graphAttributes.append(attribute)
         elif attribute['type'] == 'STRING':
             labels = attribute
 
-    quadList.insertQuad('GRAPH', struct['size'], len(struct['attributes']))
+    quadList.insertQuad('GRAPH', struct['size'], len(graphAttributes))
 
-    if len(lineAttributes) == 0:
+    if len(graphAttributes) == 0:
         print('Semantic Error: struct "%s" has no numeric attributes and cannot be graphed in line #%d.' % (structID, lineNumber))
         sys.exit()
     elif not labels is None:
         quadList.insertQuad('LABELS', labels['memID'], labels['nameMemID'])
 
-    for attribute in lineAttributes:
+    for attribute in graphAttributes:
         quadList.insertQuad('GATTR', attribute['memID'], attribute['nameMemID'])
 
     graphNameID = constantTable.lookup(structID, 'STRING')
@@ -1169,6 +1194,8 @@ def p_graph_struct(p):
         quadList.insertQuad('LINEGRAPH', graphNameID, None, None)
     elif op == 'bar':
         quadList.insertQuad('BARGRAPH', graphNameID, None, None)
+    elif op == 'pie':
+        quadList.insertQuad('PIEGRAPH', graphNameID, None, None)
 
 def p_load(p):
     'load : T_LOAD T_EXP_START T_STRING_CONST T_COMMA T_ID T_EXP_END'
@@ -1492,3 +1519,8 @@ while i < lenQuads:
         virtualStack.prepareGraph(quad[1], quad[2])
     elif quad[0] == 36:
         virtualStack.displayBarGraph(quad[1])
+    elif quad[0] == 37:
+        virtualStack.displayPieGraph(quad[1])
+    else:
+        print('Error: undefined OP code %d.' % quad[0])
+        raise Exception
