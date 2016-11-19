@@ -9,7 +9,7 @@ ops = {
     'RETURN': 8,
     'PRINT': 9,
     'INPUT': 10,
-    'GRAPH': 11,
+    'LINEGRAPH': 11,
     'GATTR': 12,
     '+': 13,
     '-': 14,
@@ -32,4 +32,6 @@ ops = {
     '<=': 31,
     '>=': 32,
     'LATTR': 33,
+    'LABELS': 34,
+    'GRAPH': 35,
 }

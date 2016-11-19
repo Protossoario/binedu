@@ -1,0 +1,12 @@
+program TestGraph;
+struct File {
+    int numberOfOrders;
+    string month;
+    float total;
+    boolean organic;
+}
+main {
+    struct File rows[10];
+    load("testFile.csv", rows);
+    line(rows);
+}
