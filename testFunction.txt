@@ -1,5 +1,7 @@
 program TestFunction;
 
+var int myArr[10];
+
 void myFunc(int A) {
     print("Valor de A = " . A);
 }
@@ -14,10 +16,26 @@ int fibonacci(int N) {
     return fibonacci(N - 1) + fibonacci(N - 2);
 }
 
+void fillArray() {
+    int i;
+    for (i = 0; i < 10; i = i + 1) {
+        myArr[i] = i * i;
+    };
+}
+
+void printArray() {
+    int i;
+    for (i = 0; i < 10; i = i + 1) {
+        print(myArr[i]);
+    };
+}
+
 main {
     int B;
     B = 11;
     print("Valor de B = " . B);
     myFunc(B * 2);
     print("Fibonacci(6) = " . fibonacci(6));
+    fillArray();
+    printArray();
 }

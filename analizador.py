@@ -49,6 +49,7 @@ reserved = {
     'line': 'T_LINE',
     'bar': 'T_BAR',
     'pie': 'T_PIE',
+    'var': 'T_VAR',
 }
 
 tokens += reserved.values()
@@ -327,7 +328,7 @@ import numpy as np
 class VirtualStack:
     def __init__(self):
         self.functions = dict()
-        self.stack = list()
+        self.stack = [{}]
         self.constants = dict()
         self.retValue = None
         self.fileBuffer = list()
@@ -349,7 +350,7 @@ class VirtualStack:
 
     def createActivationRecord(self, funcMemID):
         self.funcData = self.lookupFunction(funcMemID)
-        self.newStack = self.getCurrentStack().copy()
+        self.newStack = dict()
         self.newStack['funcMemID'] = funcMemID
 
     def setParam(self, memID, index):
@@ -367,7 +368,7 @@ class VirtualStack:
 
     def endActivationRecord(self):
         lastStack = self.stack.pop()
-        assert len(self.stack) > 0, "Virtual memory stack is empty!"
+        assert len(self.stack) > 0, "There is no memory stack!"
         currStack = self.getCurrentStack()
         currStack[lastStack['funcMemID']] = self.retValue
         return currStack['quad']
@@ -380,23 +381,45 @@ class VirtualStack:
     def insertConstantValue(self, id, val):
         self.constants[id] = val
 
+    def findInStack(self, address):
+        lenStack = len(self.stack)
+        assert lenStack > 0, "There is no memory stack!"
+
+        topStack = self.getCurrentStack()
+        if address in topStack:
+            return topStack[address]
+        index = lenStack - 2
+        while index >= 0:
+            stack = self.stack[index]
+            if address in stack:
+                return stack[address]
+            index -= 1
+        return None
+
     def getAddressValue(self, address):
-        stack = self.getCurrentStack()
-        if type(address) is str and address.startswith('*'):
-            address = int(address[1:])
-            return stack.get(stack[address])
-        elif (address > 100000 and address < 150000):
+        if (address > 100000 and address < 150000):
             return self.constants.get(address)
         else:
-            return stack.get(address)
+            if type(address) is str and address.startswith('*'):
+                address = self.findInStack(int(address[1:]))
+                return self.findInStack(address)
+            else:
+                return self.findInStack(address)
 
     def updateAddressValue(self, address, value):
-        stack = self.getCurrentStack()
+        lenStack = len(self.stack)
+
         if type(address) is str and address.startswith('*'):
-            address = int(address[1:])
-            stack[stack[address]] = value
-        else:
-            stack[address] = value
+            address = self.findInStack(int(address[1:]))
+
+        index = lenStack - 1
+        while index >= 0:
+            if address in self.stack[index]:
+                self.stack[index][address] = value
+                return
+            index -= 1
+        self.stack[lenStack - 1][address] = value
+        return
 
     def getVarType(self, address):
         if address > 60000 and address < 70000:
@@ -545,9 +568,13 @@ virtualStack = VirtualStack()
 
 def p_program(p):
     '''
-    program : prog_token T_ID T_STOP structs functions main_token block
+    program : prog_token T_ID T_STOP structs var_declares functions main_token block
+            | prog_token T_ID T_STOP structs var_declares main_token block
+            | prog_token T_ID T_STOP structs functions main_token block
+            | prog_token T_ID T_STOP var_declares functions main_token block
             | prog_token T_ID T_STOP functions main_token block
             | prog_token T_ID T_STOP structs main_token block
+            | prog_token T_ID T_STOP var_declares main_token block
             | prog_token T_ID T_STOP main_token block
     '''
     quadList.insertJump('END')
@@ -568,6 +595,12 @@ def p_main_token(p):
     main_token : T_MAIN
     '''
     quadList.updateJump(0)
+
+def p_var_declares(p):
+    '''
+    var_declares : T_VAR var_declare T_STOP var_declares
+                 | T_VAR var_declare T_STOP
+    '''
 
 def p_functions(p):
     '''
@@ -1398,6 +1431,33 @@ else:
 
 with open(file_name) as file_obj:
     parser.parse(file_obj.read())
+
+for key in currentSymbolTable.symbols:
+    symbol = currentSymbolTable.symbols[key]
+    if not 'size' in symbol:
+        virtualStack.updateAddressValue(symbol['memID'], None)
+    elif type(symbol['size']) is int:
+        for index in range(symbol['size']):
+            virtualStack.updateAddressValue(symbol['memID'] + index, None)
+    else:
+        rows, cols = symbol['size'][0], symbol['size'][1]
+        for r in range(rows):
+            for c in range(cols):
+                virtualStack.updateAddressValue(symbol['memID'] + c + r * cols, None)
+
+if len(currentSymbolTable.children) > 0:
+    for key in currentSymbolTable.children[-1].symbols:
+        symbol = currentSymbolTable.children[-1].symbols[key]
+        if not 'size' in symbol:
+            virtualStack.updateAddressValue(symbol['memID'], None)
+        elif type(symbol['size']) is int:
+            for index in range(symbol['size']):
+                virtualStack.updateAddressValue(symbol['memID'] + index, None)
+        else:
+            rows, cols = symbol['size'][0], symbol['size'][1]
+            for r in range(rows):
+                for c in range(cols):
+                    virtualStack.updateAddressValue(symbol['memID'] + c + r * cols, None)
 
 import csv
 # Ejecutar cuadruplos
