@@ -329,6 +329,9 @@ class VirtualStack:
         self.constants = dict()
         self.retValue = None
         self.fileBuffer = list()
+        plt.xkcd()
+        plt.rc('lines', linewidth=4)
+        plt.rc('axes', color_cycle=['r', 'g', 'b', 'y'])
 
     def createFunction(self, funcMemID, funcData):
         self.functions[funcMemID] = funcData
@@ -429,17 +432,21 @@ class VirtualStack:
             index += 1
 
     def prepareLineGraph(self, dataSize, attributes):
-        plt.rc('lines', linewidth=2)
+        fig = plt.figure()
+        ax = fig.add_axes((0.1, 0.2, 0.8, 0.7))
+        ax.spines["right"].set_visible(False)
+        ax.spines["top"].set_visible(False)
         self.plotDataSize = dataSize
         self.plotLabels = list()
         self.plotLegends = list()
         self.plotData = list()
 
-    def prepareLabels(self, memID):
+    def prepareLabels(self, memID, nameMemID):
         index = 0
         while index < self.plotDataSize:
             self.plotLabels.append(self.getAddressValue(memID + index))
             index += 1
+        self.plotLabelsName = self.getAddressValue(nameMemID)
 
     def prepareColumn(self, memID, nameMemID):
         self.plotLegends.append(self.getAddressValue(nameMemID))
@@ -450,7 +457,7 @@ class VirtualStack:
             index += 1
         self.plotData.append(data)
 
-    def displayGraph(self):
+    def displayGraph(self, graphTitle):
         index = 0
         handles = list()
         for data in self.plotData:
@@ -458,6 +465,14 @@ class VirtualStack:
             handles.append(line)
             index += 1
         plt.legend(handles=handles)
+        lenLabels = len(self.plotLabels)
+        if lenLabels > 0:
+            plt.xticks(np.arange(lenLabels), self.plotLabels, rotation='vertical')
+            plt.margins(0.2)
+            plt.subplots_adjust(bottom=0.15)
+        plt.xlabel(self.plotLabelsName)
+        plt.title(self.getAddressValue(graphTitle))
+        plt.tick_params(bottom='off', top='off', right='off', left='off', pad=1.5)
         plt.show()
 
 virtualStack = VirtualStack()
@@ -1075,13 +1090,15 @@ def p_graph_line_struct(p):
     labels = None
     for attrID in struct['attributes']:
         attribute = struct['attributes'][attrID]
+        if attribute['type'] == 'BOOLEAN':
+            continue
+        nameMemID = constantTable.lookup(attrID, 'STRING')
+        if nameMemID is None:
+            nameMemID = constants.generateStringID()
+            constantTable.insert(attrID, 'STRING', nameMemID)
+            virtualStack.insertConstantValue(nameMemID, attrID)
+        attribute['nameMemID'] = nameMemID
         if attribute['type'] == 'INT' or attribute['type'] == 'FLOAT':
-            nameMemID = constantTable.lookup(attrID, 'STRING')
-            if nameMemID is None:
-                nameMemID = constants.generateStringID()
-                constantTable.insert(attrID, 'STRING', nameMemID)
-                virtualStack.insertConstantValue(nameMemID, attrID)
-            attribute['nameMemID'] = nameMemID
             lineAttributes.append(attribute)
         elif attribute['type'] == 'STRING':
             labels = attribute
@@ -1092,12 +1109,17 @@ def p_graph_line_struct(p):
         print('Semantic Error: struct "%s" has no numeric attributes and cannot be graphed in line #%d.' % (structID, lineNumber))
         sys.exit()
     elif not labels is None:
-        quadList.insertQuad('LABELS', labels['memID'])
+        quadList.insertQuad('LABELS', labels['memID'], labels['nameMemID'])
 
     for attribute in lineAttributes:
         quadList.insertQuad('GATTR', attribute['memID'], attribute['nameMemID'])
 
-    quadList.insertQuad('GRAPH', None, None, None)
+    graphNameID = constantTable.lookup(structID, 'STRING')
+    if graphNameID is None:
+        graphNameID = constants.generateStringID()
+        constantTable.insert(structID, 'STRING', graphNameID)
+        virtualStack.insertConstantValue(graphNameID, structID)
+    quadList.insertQuad('GRAPH', graphNameID, None, None)
 
 def p_load(p):
     'load : T_LOAD T_EXP_START T_STRING_CONST T_COMMA T_ID T_EXP_END'
@@ -1422,6 +1444,6 @@ while i < lenQuads:
         # Load file column into attribute
         virtualStack.loadColumnInto(quad[3], quad[1])
     elif quad[0] == 34:
-        virtualStack.prepareLabels(quad[1])
+        virtualStack.prepareLabels(quad[1], quad[2])
     elif quad[0] == 35:
-        virtualStack.displayGraph()
+        virtualStack.displayGraph(quad[1])

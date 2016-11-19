@@ -5,8 +5,15 @@ struct File {
     float total;
     boolean organic;
 }
+
+struct OtherFile {
+    float total;
+}
 main {
     struct File rows[10];
     load("testFile.csv", rows);
     line(rows);
+    struct OtherFile totals[5];
+    load("testTotals.csv", totals);
+    line(totals);
 }
