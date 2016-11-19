@@ -304,8 +304,8 @@ class StructManager:
     def getInstance(self, structInstanceID):
         return self.instances.get(structInstanceID)
 
-    def addArrayAttribute(self, structInstanceID, attrType, attrID, memID):
-        self.arrays[structInstanceID]['attributes'][attrID] = { 'type': attrType, 'memID': memID }
+    def addArrayAttribute(self, structInstanceID, attrType, attrID, memID, index):
+        self.arrays[structInstanceID]['attributes'][attrID] = { 'type': attrType, 'memID': memID, 'index': index }
 
     def getArray(self, structInstanceID):
         return self.arrays.get(structInstanceID)
@@ -324,6 +324,7 @@ class VirtualStack:
         self.stack = list()
         self.constants = dict()
         self.retValue = None
+        self.fileBuffer = list()
 
     def createFunction(self, funcMemID, funcData):
         self.functions[funcMemID] = funcData
@@ -385,6 +386,43 @@ class VirtualStack:
             stack[stack[address]] = value
         else:
             stack[address] = value
+
+    def getVarType(self, address):
+        if address > 60000 and address < 70000:
+            return 'INT'
+        elif address > 70000 and address < 80000:
+            return 'FLOAT'
+        elif address > 80000 and address < 90000:
+            return 'BOOLEAN'
+        elif address > 90000 and address < 100000:
+            return 'STRING'
+
+    def cast(self, value, type):
+        if type == 'INT':
+            return int(value)
+        elif type == 'FLOAT':
+            return float(value)
+        elif type == 'BOOLEAN':
+            return value == 'true'
+        elif type == 'STRING':
+            return value
+        else:
+            print('Unrecognized type "%s".' % type)
+            sys.exit()
+
+    def cleanFileBuffer(self):
+        self.fileBuffer = list()
+
+    def addFileRow(self, row):
+        self.fileBuffer.append(row)
+
+    def loadColumnInto(self, array, col):
+        type = self.getVarType(array)
+        index = 0
+        for row in self.fileBuffer:
+            value = self.cast(row[col], type)
+            self.updateAddressValue(array + index, value)
+            index += 1
 
 virtualStack = VirtualStack()
 
@@ -500,9 +538,11 @@ def p_var_declare_struct_array(p):
         print('Semantic Error: duplicated struct array "%s" in line #%d.' % (structID, lineNumber))
         sys.exit()
     structManager.createArray(arrID, size)
+    index = 0
     for attribute in attributes:
         memID = variables.generateArrayID(attribute['type'], size)
-        structManager.addArrayAttribute(arrID, attribute['type'], attribute['id'], memID)
+        structManager.addArrayAttribute(arrID, attribute['type'], attribute['id'], memID, index)
+        index += 1
 
 def p_var_declare(p):
     'var_declare : type var_ids'
@@ -1019,7 +1059,7 @@ def p_load(p):
     quadList.insertQuad('LOAD', memID, struct['size'], len(struct['attributes']))
     for attrID in struct['attributes']:
         attribute = struct['attributes'][attrID]
-        quadList.insertQuad('LATTR', attribute['memID'])
+        quadList.insertQuad('LATTR', attribute['index'], None, attribute['memID'])
 
 def p_concat_const(p):
     'concat : T_STRING_CONST'
@@ -1206,6 +1246,7 @@ else:
 with open(file_name) as file_obj:
     parser.parse(file_obj.read())
 
+import csv
 # Ejecutar cuadruplos
 i = 0
 lenQuads = len(quadList.quadruples)
@@ -1238,6 +1279,14 @@ while i < lenQuads:
     elif quad[0] == 10:
         value = input()
         virtualStack.updateAddressValue(quad[1], value)
+    elif quad[0] == 11:
+        # graph, size, noAttributes: prepare to read up to N tuples (N = size) and M attributes (M = noAttributes) for graphing
+        print("Graph quad")
+        print(quad)
+    elif quad[0] == 12:
+        # gattr, valueID, nameID: read values from an attribute of a struct for graphing
+        print("GATTR quad")
+        print(quad)
     elif quad[0] == 13:
         value1, value2 = virtualStack.getAddressValue(quad[1]), virtualStack.getAddressValue(quad[2])
         virtualStack.updateAddressValue(quad[3], value1 + value2)
@@ -1271,12 +1320,27 @@ while i < lenQuads:
     elif quad[0] == 23:
         value1, value2 = virtualStack.getAddressValue(quad[1]), virtualStack.getAddressValue(quad[2])
         virtualStack.updateAddressValue(quad[3], value1 != value2)
+    elif quad[0] == 24:
+        sys.exit()
     elif quad[0] == 25:
         value = virtualStack.getAddressValue(quad[1])
         if value is None:
             print('Error: undefined variable in quadruple #%d.' % (i))
             raise Exception
         virtualStack.updateAddressValue(quad[3], value)
+    elif quad[0] == 26:
+        # Prepare to load a csv file to a struct
+        filename = virtualStack.getAddressValue(quad[1])
+        virtualStack.cleanFileBuffer()
+        maxRows = quad[2]
+        rows = 0
+        with open(filename, 'rb') as csvfile:
+            rows_reader = csv.reader(csvfile)
+            for row in rows_reader:
+                virtualStack.addFileRow(row)
+                rows += 1
+                if rows == maxRows:
+                    break
     elif quad[0] == 27:
         value = virtualStack.getAddressValue(quad[1])
         if value < 0 or value >= quad[2]:
@@ -1297,3 +1361,6 @@ while i < lenQuads:
     elif quad[0] == 32:
         value1, value2 = virtualStack.getAddressValue(quad[1]), virtualStack.getAddressValue(quad[2])
         virtualStack.updateAddressValue(quad[3], value1 >= value2)
+    elif quad[0] == 33:
+        # Load file column into attribute
+        virtualStack.loadColumnInto(quad[3], quad[1])

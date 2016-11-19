@@ -1,0 +1,12 @@
+program TestLoad;
+struct File {
+    int col0;
+    string col1;
+    float col2;
+    boolean col3;
+}
+main {
+    struct File rows[10];
+    load("testFile.csv", rows);
+    print("rows[9]:col2 = " . rows[9]:col2);
+}
