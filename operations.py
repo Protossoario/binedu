@@ -34,4 +34,5 @@ ops = {
     'LATTR': 33,
     'LABELS': 34,
     'GRAPH': 35,
+    'BARGRAPH': 36,
 }

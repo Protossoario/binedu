@@ -37,7 +37,6 @@ reserved = {
     'print': 'T_PRINT',
     'for': 'T_FOR',
     'print': 'T_PRINT',
-    'graph': 'T_GRAPH',
     'load': 'T_LOAD',
     'input': 'T_INPUT',
     'while': 'T_WHILE',
@@ -48,6 +47,7 @@ reserved = {
     'return': 'T_RETURN',
     'void': 'T_VOID',
     'line': 'T_LINE',
+    'bar': 'T_BAR',
 }
 
 tokens += reserved.values()
@@ -319,6 +319,7 @@ class StructManager:
 
 structManager = StructManager()
 
+from cycler import cycler
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -329,9 +330,11 @@ class VirtualStack:
         self.constants = dict()
         self.retValue = None
         self.fileBuffer = list()
+        self.colors = ['yellowgreen', 'gold', 'lightskyblue', 'lightcoral']
         plt.xkcd()
         plt.rc('lines', linewidth=4)
-        plt.rc('axes', color_cycle=['r', 'g', 'b', 'y'])
+        plt.rc('axes', prop_cycle=(cycler('color', ['r', 'g', 'b', 'y']) +
+                           cycler('linestyle', ['-', '--', ':', '-.'])))
 
     def createFunction(self, funcMemID, funcData):
         self.functions[funcMemID] = funcData
@@ -431,11 +434,17 @@ class VirtualStack:
             self.updateAddressValue(array + index, value)
             index += 1
 
-    def prepareLineGraph(self, dataSize, attributes):
+    def prepareGraph(self, dataSize, attributes):
         fig = plt.figure()
         ax = fig.add_axes((0.1, 0.2, 0.8, 0.7))
         ax.spines["right"].set_visible(False)
         ax.spines["top"].set_visible(False)
+        self.plotDataSize = dataSize
+        self.plotLabels = list()
+        self.plotLegends = list()
+        self.plotData = list()
+
+    def prepareGraph(self, dataSize, attributes):
         self.plotDataSize = dataSize
         self.plotLabels = list()
         self.plotLegends = list()
@@ -457,19 +466,52 @@ class VirtualStack:
             index += 1
         self.plotData.append(data)
 
-    def displayGraph(self, graphTitle):
+    def displayLineGraph(self, graphTitle):
+        fig = plt.figure()
+        ax = fig.add_axes((0.1, 0.2, 0.8, 0.7))
+        ax.spines["right"].set_visible(False)
+        ax.spines["top"].set_visible(False)
+
         index = 0
-        handles = list()
+        lines = list()
         for data in self.plotData:
             line, = plt.plot(data, label=self.plotLegends[index])
-            handles.append(line)
+            lines.append(line)
             index += 1
-        plt.legend(handles=handles)
+        ax.legend(handles=lines)
+
         lenLabels = len(self.plotLabels)
         if lenLabels > 0:
             plt.xticks(np.arange(lenLabels), self.plotLabels, rotation='vertical')
-            plt.margins(0.2)
+            plt.margins(1)
             plt.subplots_adjust(bottom=0.15)
+
+        plt.xlabel(self.plotLabelsName)
+        plt.title(self.getAddressValue(graphTitle))
+        plt.tick_params(bottom='off', top='off', right='off', left='off', pad=1.5)
+        plt.show()
+
+    def displayBarGraph(self, graphTitle):
+        fig = plt.figure()
+        ax = fig.add_axes((0.1, 0.2, 0.8, 0.7))
+        ax.spines["right"].set_visible(False)
+        ax.spines["top"].set_visible(False)
+
+        width = 0.35
+        bars = list()
+        ind = np.arange(self.plotDataSize)
+        index = 0
+        for data in self.plotData:
+            bar = ax.bar(ind + index * width, data, width, color=self.colors[index % len(self.colors)])
+            bars.append(bar)
+            index += 1
+        plt.legend(bars, self.plotLegends)
+
+        lenLabels = len(self.plotLabels)
+        if lenLabels > 0:
+            plt.xticks(ind + width, self.plotLabels, rotation='vertical')
+            plt.subplots_adjust(bottom=0.15)
+
         plt.xlabel(self.plotLabelsName)
         plt.title(self.getAddressValue(graphTitle))
         plt.tick_params(bottom='off', top='off', right='off', left='off', pad=1.5)
@@ -1078,9 +1120,12 @@ def p_input(p):
     id = p[3]
     quadList.insertQuad('INPUT', id['id'])
 
-def p_graph_line_struct(p):
-    'graph : T_LINE T_EXP_START T_ID T_EXP_END'
-    structID = p[3]
+def p_graph_struct(p):
+    '''
+    graph : T_LINE T_EXP_START T_ID T_EXP_END
+          | T_BAR T_EXP_START T_ID T_EXP_END
+    '''
+    op, structID = p[1], p[3]
     struct = structManager.getArray(structID)
     if struct is None:
         print('Semantic Error: variable "%s" must be a struct array in line #%d.' % (structID, lineNumber))
@@ -1103,7 +1148,7 @@ def p_graph_line_struct(p):
         elif attribute['type'] == 'STRING':
             labels = attribute
 
-    quadList.insertQuad('LINEGRAPH', struct['size'], len(struct['attributes']))
+    quadList.insertQuad('GRAPH', struct['size'], len(struct['attributes']))
 
     if len(lineAttributes) == 0:
         print('Semantic Error: struct "%s" has no numeric attributes and cannot be graphed in line #%d.' % (structID, lineNumber))
@@ -1119,7 +1164,11 @@ def p_graph_line_struct(p):
         graphNameID = constants.generateStringID()
         constantTable.insert(structID, 'STRING', graphNameID)
         virtualStack.insertConstantValue(graphNameID, structID)
-    quadList.insertQuad('GRAPH', graphNameID, None, None)
+
+    if op == 'line':
+        quadList.insertQuad('LINEGRAPH', graphNameID, None, None)
+    elif op == 'bar':
+        quadList.insertQuad('BARGRAPH', graphNameID, None, None)
 
 def p_load(p):
     'load : T_LOAD T_EXP_START T_STRING_CONST T_COMMA T_ID T_EXP_END'
@@ -1357,14 +1406,8 @@ while i < lenQuads:
         value = input()
         virtualStack.updateAddressValue(quad[1], value)
     elif quad[0] == 11:
-        # graph, size, noAttributes: prepare to read up to N tuples (N = size) and M attributes (M = noAttributes) for graphing
-        print("Graph quad")
-        print(quad)
-        virtualStack.prepareLineGraph(quad[1], quad[2])
+        virtualStack.displayLineGraph(quad[1])
     elif quad[0] == 12:
-        # gattr, valueID, nameID: read values from an attribute of a struct for graphing
-        print("GATTR quad")
-        print(quad)
         virtualStack.prepareColumn(quad[1], quad[2])
     elif quad[0] == 13:
         value1, value2 = virtualStack.getAddressValue(quad[1]), virtualStack.getAddressValue(quad[2])
@@ -1446,4 +1489,6 @@ while i < lenQuads:
     elif quad[0] == 34:
         virtualStack.prepareLabels(quad[1], quad[2])
     elif quad[0] == 35:
-        virtualStack.displayGraph(quad[1])
+        virtualStack.prepareGraph(quad[1], quad[2])
+    elif quad[0] == 36:
+        virtualStack.displayBarGraph(quad[1])
