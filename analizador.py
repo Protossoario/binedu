@@ -158,8 +158,8 @@ class QuadrupleList:
     def insertAssign(self, val, dest):
         self.quadruples.append((ops['='], val, None, dest))
 
-    def insertJump(self, jump, destination=None):
-        self.quadruples.append((ops[jump], None, None, destination))
+    def insertJump(self, jump, destination=None, expression=None):
+        self.quadruples.append((ops[jump], expression, None, destination))
         return len(self.quadruples) - 1
 
     def updateJump(self, index, expression=None, destination=None):
@@ -992,8 +992,8 @@ def p_do_while(p):
     '''
     do_while : T_DO block T_WHILE T_EXP_START expression T_EXP_END
     '''
-    block = p[2]
-    quadList.insertJump('GOTOV', block['start'])
+    block, expression = p[2], p[5]
+    quadList.insertJump('GOTOV', block['start'], expression['id'])
 
 def p_assign_simple(p):
     '''
