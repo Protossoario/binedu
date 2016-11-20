@@ -259,6 +259,7 @@ variables = MemoryMap(50000)
 constants = MemoryMap(100000)
 temps = MemoryMap(150000)
 functions = MemoryMap(200000)
+globalvars = MemoryMap(250000)
 
 class ConstantTable:
     def __init__(self):
@@ -382,23 +383,14 @@ class VirtualStack:
         self.constants[id] = val
 
     def findInStack(self, address):
-        lenStack = len(self.stack)
-        assert lenStack > 0, "There is no memory stack!"
+        if address > 250000:
+            return self.stack[0].get(address)
 
-        topStack = self.getCurrentStack()
-        if address in topStack:
-            return topStack[address]
-        index = lenStack - 2
-        while index >= 0:
-            stack = self.stack[index]
-            if address in stack:
-                return stack[address]
-            index -= 1
-        return None
+        return self.stack[-1].get(address)
 
     def getAddressValue(self, address):
         if (address > 100000 and address < 150000):
-            return self.constants.get(address)
+            return self.constants[address]
         else:
             if type(address) is str and address.startswith('*'):
                 address = self.findInStack(int(address[1:]))
@@ -407,19 +399,13 @@ class VirtualStack:
                 return self.findInStack(address)
 
     def updateAddressValue(self, address, value):
-        lenStack = len(self.stack)
-
         if type(address) is str and address.startswith('*'):
             address = self.findInStack(int(address[1:]))
 
-        index = lenStack - 1
-        while index >= 0:
-            if address in self.stack[index]:
-                self.stack[index][address] = value
-                return
-            index -= 1
-        self.stack[lenStack - 1][address] = value
-        return
+        if address > 250000:
+            self.stack[0][address] = value
+        else:
+            self.stack[-1][address] = value
 
     def getVarType(self, address):
         if address > 60000 and address < 70000:
@@ -566,6 +552,8 @@ class VirtualStack:
 
 virtualStack = VirtualStack()
 
+declareGlobal = False
+
 def p_program(p):
     '''
     program : prog_token T_ID T_STOP structs var_declares functions main_token block
@@ -598,9 +586,16 @@ def p_main_token(p):
 
 def p_var_declares(p):
     '''
-    var_declares : T_VAR var_declare T_STOP var_declares
-                 | T_VAR var_declare T_STOP
+    var_declares : var_token var_declare T_STOP var_declares
+                 | var_token var_declare T_STOP
     '''
+    global declareGlobal
+    declareGlobal = False
+
+def p_var_token(p):
+    'var_token : T_VAR'
+    global declareGlobal
+    declareGlobal = True
 
 def p_functions(p):
     '''
@@ -663,7 +658,11 @@ def p_var_declare_array(p):
     if not symbol is None and symbol['type'] == type:
         print('Semantic Error: duplicated variable of type %s with ID "%s" in line #%d.' % (type, id, lineNumber))
         sys.exit()
-    memID = variables.generateArrayID(type, size)
+    global declareGlobal
+    if declareGlobal:
+        memID = globalvars.generateArrayID(type, size)
+    else:
+        memID = variables.generateArrayID(type, size)
     currentSymbolTable.insertArray(id, p[1], memID, size)
 
 def p_var_declare_matrix(p):
@@ -674,7 +673,11 @@ def p_var_declare_matrix(p):
         print('Semantic Error: duplicated variable of type %s with ID "%s" in line #%d.' % (type, id, lineNumber))
         sys.exit()
     size = rows * columns
-    memID = variables.generateArrayID(type, size)
+    global declareGlobal
+    if declareGlobal:
+        memID = globalvars.generateArrayID(type, size)
+    else:
+        memID = variables.generateArrayID(type, size)
     currentSymbolTable.insertArray(id, p[1], memID, [ rows, columns ])
 
 def p_var_declare_struct_array(p):
@@ -690,7 +693,11 @@ def p_var_declare_struct_array(p):
     structManager.createArray(arrID, size)
     index = 0
     for attribute in attributes:
-        memID = variables.generateArrayID(attribute['type'], size)
+        global declareGlobal
+        if declareGlobal:
+            memID = globalvars.generateArrayID(attribute['type'], size)
+        else:
+            memID = variables.generateArrayID(attribute['type'], size)
         structManager.addArrayAttribute(arrID, attribute['type'], attribute['id'], memID, index)
         index += 1
 
@@ -702,7 +709,11 @@ def p_var_declare(p):
         if not symbol is None and symbol['type'] == type:
             print('Semantic Error: duplicated variable of type %s with ID "%s" in line #%d.' % (type, id, lineNumber))
             sys.exit()
-        memID = variables.generateID(type)
+        global declareGlobal
+        if declareGlobal:
+            memID = globalvars.generateID(type)
+        else:
+            memID = variables.generateID(type)
         currentSymbolTable.insert(id, type, memID)
 
 def p_function_type(p):
@@ -993,7 +1004,7 @@ def p_assign_simple(p):
 def p_assign_array(p):
     'assign : id T_ASSIGN T_ARR_START array T_ARR_END'
     id, array = p[1], p[4]
-    if 'size' not in id or type(id) != int:
+    if not 'size' in id or type(id['size']) != int:
         print('Semantic Error: variable "%s" must be an array in line #%d.' % (id['token'], lineNumber))
         sys.exit()
     elif id['size'] != len(array):
@@ -1445,20 +1456,6 @@ for key in currentSymbolTable.symbols:
             for c in range(cols):
                 virtualStack.updateAddressValue(symbol['memID'] + c + r * cols, None)
 
-if len(currentSymbolTable.children) > 0:
-    for key in currentSymbolTable.children[-1].symbols:
-        symbol = currentSymbolTable.children[-1].symbols[key]
-        if not 'size' in symbol:
-            virtualStack.updateAddressValue(symbol['memID'], None)
-        elif type(symbol['size']) is int:
-            for index in range(symbol['size']):
-                virtualStack.updateAddressValue(symbol['memID'] + index, None)
-        else:
-            rows, cols = symbol['size'][0], symbol['size'][1]
-            for r in range(rows):
-                for c in range(cols):
-                    virtualStack.updateAddressValue(symbol['memID'] + c + r * cols, None)
-
 import csv
 # Ejecutar cuadruplos
 i = 0
@@ -1534,9 +1531,10 @@ while i < lenQuads:
     elif quad[0] == 25:
         value = virtualStack.getAddressValue(quad[1])
         if value is None:
-            print('Error: undefined variable in quadruple #%d.' % (i))
+            print('Error: undefined variable in quadruple #%d.' % (i - 1))
             raise Exception
         virtualStack.updateAddressValue(quad[3], value)
+        assert virtualStack.getAddressValue(quad[3]) == value
     elif quad[0] == 26:
         # Prepare to load a csv file to a struct
         filename = virtualStack.getAddressValue(quad[1])

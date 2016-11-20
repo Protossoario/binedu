@@ -1,0 +1,33 @@
+program TestSort;
+var int arr[10];
+
+void initArr() {
+    arr = [ 4, 2, 3, 1, 1, 5, 6, 7, 99, -1 ];
+}
+
+void sortArr() {
+    int i, j, aux;
+    for (i = 0; i < 10; i = i + 1) {
+        for (j = i; j < 10; j = j + 1) {
+            if (arr[i] < arr[j]) {
+                aux = arr[i];
+                arr[i] = arr[j];
+                arr[j] = aux;
+            };
+        };
+    };
+}
+
+void printArr() {
+    int i;
+    for (i = 0; i < 10; i = i + 1) {
+        print(arr[i]);
+    };
+}
+
+main {
+    initArr();
+    printArr();
+    sortArr();
+    printArr();
+}
