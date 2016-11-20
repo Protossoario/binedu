@@ -175,6 +175,13 @@ class QuadrupleList:
         return self.quadruples[-1]
 
     def moveQuadRangeToEnd(self, begin, end):
+        rangeSize = end - begin
+        for ind in range(end, len(self.quadruples)):
+            op = self.quadruples[ind][0]
+            if op >= 1 and op <= 3:
+                oldQuad = self.quadruples[ind]
+                newQuad = (oldQuad[0], oldQuad[1], oldQuad[2], oldQuad[3] - rangeSize)
+                self.quadruples[ind] = newQuad
         self.quadruples = self.quadruples[:begin] + self.quadruples[end:] + self.quadruples[begin:end]
 
     def printQuadruples(self):

@@ -27,7 +27,9 @@ void printArr() {
 
 main {
     initArr();
+    print("Original array:");
     printArr();
     sortArr();
+    print("Sorted array:");
     printArr();
 }
