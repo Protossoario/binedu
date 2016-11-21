@@ -13,9 +13,9 @@ main {
     print("Input N:");
     input(n);
     while (n > 0) {
-        print("N = " . n);
-        print("arr[N] = " . arr[n]);
-        print("Input N:");
+        println("N = " . n);
+        println("arr[N] = " . arr[n]);
+        println("Input N:");
         input(n);
     };
 }

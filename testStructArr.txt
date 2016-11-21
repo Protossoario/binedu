@@ -11,9 +11,9 @@ main {
     apples[0]:name = "Bob";
     float B;
     B = apples[0]:weight;
-    print(B);
-    print(apples[0]:weight);
-    print("apples[0]:name = " . apples[0]:name);
+    println(B);
+    println(apples[0]:weight);
+    println("apples[0]:name = " . apples[0]:name);
     apples2[1]:weight = 1.5;
-    print(apples2[1]:weight * apples[0]:weight);
+    println(apples2[1]:weight * apples[0]:weight);
 }

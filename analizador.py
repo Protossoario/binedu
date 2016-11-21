@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+from __future__ import print_function
 import sys
 import ply.lex as lex
 
@@ -50,6 +51,7 @@ reserved = {
     'bar': 'T_BAR',
     'pie': 'T_PIE',
     'var': 'T_VAR',
+    'println': 'T_PRINTLN',
 }
 
 tokens += reserved.values()
@@ -1190,6 +1192,11 @@ def p_write(p):
     concat = p[3]
     quadList.insertQuad('PRINT', concat['id'])
 
+def p_write_line(p):
+    'write : T_PRINTLN T_EXP_START concat T_EXP_END'
+    concat = p[3]
+    quadList.insertQuad('PRINTLN', concat['id'])
+
 def p_input(p):
     'input : T_INPUT T_EXP_START id T_EXP_END'
     id = p[3]
@@ -1450,19 +1457,6 @@ else:
 with open(file_name) as file_obj:
     parser.parse(file_obj.read())
 
-for key in currentSymbolTable.symbols:
-    symbol = currentSymbolTable.symbols[key]
-    if not 'size' in symbol:
-        virtualStack.updateAddressValue(symbol['memID'], None)
-    elif type(symbol['size']) is int:
-        for index in range(symbol['size']):
-            virtualStack.updateAddressValue(symbol['memID'] + index, None)
-    else:
-        rows, cols = symbol['size'][0], symbol['size'][1]
-        for r in range(rows):
-            for c in range(cols):
-                virtualStack.updateAddressValue(symbol['memID'] + c + r * cols, None)
-
 import csv
 # Ejecutar cuadruplos
 i = 0
@@ -1492,7 +1486,7 @@ while i < lenQuads:
     elif quad[0] == 8:
         virtualStack.setReturnValue(quad[1])
     elif quad[0] == 9:
-        print(virtualStack.getAddressValue(quad[1]))
+        print(virtualStack.getAddressValue(quad[1]), end="")
     elif quad[0] == 10:
         value = input()
         virtualStack.updateAddressValue(quad[1], value)
@@ -1586,6 +1580,8 @@ while i < lenQuads:
         virtualStack.displayBarGraph(quad[1])
     elif quad[0] == 37:
         virtualStack.displayPieGraph(quad[1])
+    elif quad[0] == 38:
+        print(virtualStack.getAddressValue(quad[1]))
     else:
         print('Error: undefined OP code %d.' % quad[0])
         raise Exception

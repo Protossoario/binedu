@@ -12,14 +12,14 @@ void myFunction() {
     int arr[5];
     int arr2[2];
     do {
-        print(myFloat);
+        println(myFloat);
         myFloat = myFloat + 1;
     } while (myFloat < 10);
 
     int i;
     for (i = 0; i < 5; i = i + 1) {
         arr[i] = i;
-        print(arr[i]);
+        println(arr[i]);
     };
 }
 
@@ -33,7 +33,7 @@ main
   float X;
   float Y;
   int A, B;
-  print("Hello");
+  println("Hello");
   B = 7;
   A = B;
   X = 9;
@@ -50,7 +50,7 @@ main
   load("file", apples);
   graph(apples);
 
-  print("Input value of A:");
+  println("Input value of A:");
   input(A);
 
   myFunction();
@@ -58,7 +58,7 @@ main
 
   string myStr;
   myStr = "Hola";
-  print(myStr);
+  println(myStr);
 
   int P;
   P = 34;
@@ -70,27 +70,27 @@ main
         Hugo = 0;
         Hugo = Hugo + 1;
         apple:weight = Hugo * apple:weight;
-        print("Apple weight: " . apple:weight);
+        println("Apple weight: " . apple:weight);
     };
     P = Q * 2;
   } while (P < 40);
 
   while (X > 3) {
-      print(X);
+      println(X);
       X = X - 1;
   };
 
   boolean test1;
   test1 = A < B;
   if (test1 && 1 < 2) {
-      print("Oops!");
+      println("Oops!");
       int prueba;
       prueba = 2 + 2;
   };
 
   if (X > Y) {
     Y = 65;
-    print("Value of X = " . X);
+    println("Value of X = " . X);
     int hola;
     hola = 10;
   }
@@ -99,25 +99,25 @@ main
   };
   int lol;
   if (X > Y) {
-    print("Value of Y = " . Y);
+    println("Value of Y = " . Y);
     lol = 10;
   }
   else if (lol == 10) {
     int wuuw;
     wuuw = 1;
-    print("Ryan Gosling");
+    println("Ryan Gosling");
   };
 
   int hey;
   if (X > Y) {
     Y = 52;
-    print("Value of Y = " . Y);
+    println("Value of Y = " . Y);
     hey = 10;
   }
   else if (hey == 10) {
     int hoy;
     hoy = 1;
-    print("Ryan Gosling");
+    println("Ryan Gosling");
   }
   else {
     int ayer;
@@ -129,13 +129,13 @@ main
   why = 0;
   if (X > Y) {
     Y = 34;
-    print("Value of Y = " . Y);
+    println("Value of Y = " . Y);
     who = 10;
   }
   else if (who == 10) {
     int when;
     when = 1;
-    print("Ryan Gosling");
+    println("Ryan Gosling");
   }
   else if (why < 10) {
     int what;
@@ -146,6 +146,6 @@ main
     where = 5;
   };
 
-  print("FINITO!");
+  println("FINITO!");
 
 }

@@ -6,12 +6,12 @@ main {
     A = 0;
     int i;
     for (i = 0; i < 10; i = i + 1) {
-        print(i + arr[i]);
+        println(i + arr[i]);
     };
     int j;
     for (i = 0; i < 2; i = i + 1) {
         for (j = 0; j < 2; j = j + 1) {
-            print(i * j);
+            println(i * j);
         };
     };
 }

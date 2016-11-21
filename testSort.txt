@@ -20,16 +20,18 @@ void sortArr() {
 
 void printArr() {
     int i;
+    print("[ ");
     for (i = 0; i < 10; i = i + 1) {
-        print(arr[i]);
+        print(arr[i] . " ");
     };
+    println("]");
 }
 
 main {
     initArr();
-    print("Original array:");
+    print("Original array: ");
     printArr();
     sortArr();
-    print("Sorted array:");
+    print("Sorted array: ");
     printArr();
 }

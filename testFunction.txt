@@ -3,7 +3,7 @@ program TestFunction;
 var int myArr[10];
 
 void myFunc(int A) {
-    print("Valor de A = " . A);
+    println("Valor de A = " . A);
 }
 
 int fibonacci(int N) {
@@ -26,16 +26,16 @@ void fillArray() {
 void printArray() {
     int i;
     for (i = 0; i < 10; i = i + 1) {
-        print(myArr[i]);
+        println(myArr[i]);
     };
 }
 
 main {
     int B;
     B = 11;
-    print("Valor de B = " . B);
+    println("Valor de B = " . B);
     myFunc(B * 2);
-    print("Fibonacci(6) = " . fibonacci(6));
+    println("Fibonacci(6) = " . fibonacci(6));
     fillArray();
     printArray();
 }

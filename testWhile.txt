@@ -7,7 +7,7 @@ main {
     while (i < 3) {
         int j;
         for (j = 0; j < 2; j = j + 1) {
-            print(mat[i][j]);
+            println(mat[i][j]);
         };
         i = i + 1;
     };

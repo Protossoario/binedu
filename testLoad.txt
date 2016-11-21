@@ -8,5 +8,5 @@ struct File {
 main {
     struct File rows[10];
     load("testFile.csv", rows);
-    print("rows[9]:col2 = " . rows[9]:col2);
+    println("rows[9]:col2 = " . rows[9]:col2);
 }

@@ -1,0 +1,17 @@
+program TestFactorial;
+var int fact[1000];
+int factorial(int n) {
+    if (n == 0) {
+        return 1;
+    };
+    return n * factorial(n - 1);
+}
+main {
+    int i;
+    fact[0] = 1;
+    for (i = 1; i < 1000; i = i + 1) {
+        fact[i] = i * fact[i - 1];
+    };
+    println("Factorial(8) = " . factorial(8));
+    println("Factorial(8) = " . fact[8]);
+}
