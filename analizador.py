@@ -101,6 +101,9 @@ import ply.yacc as yacc
 
 from operations import ops
 
+# Almacena las direcciones, IDs y tipos de las variables homogéneas, tanto locales como globales.
+# Utiliza una referencia recursiva para crear un árbol de instancias de esta clase, donde cada nodo corresponde a un bloque del programa.
+# Esto permite manejar distintos “scopes” de la misma manera que Java, C y C++.
 class SymbolTable:
     def __init__(self):
         self.symbols = dict()
@@ -147,6 +150,7 @@ def filterNone(token):
         return '-'
     return token
 
+# Almacena los cuádruplos que se generan durante la compilación, exponiendo varios métodos para crear cuádruplos, manipularlos (en el caso de la generación del estatuto “for”), o actualizarlos después de haber sido creados (en el caso de la generación de saltos).
 class QuadrupleList:
     def __init__(self):
         self.quadruples = list()
@@ -194,6 +198,10 @@ class QuadrupleList:
 
 quadList = QuadrupleList()
 
+# Estructura para generar las direcciones virtuales.
+# Permite generar direcciones en diferentes rangos en base al tipo de valor.
+# Además, se puede instanciar con un diferente número base para generar distintos rangos de direcciones en cada instancia.
+# Esto permite diferenciar las direcciones globales, locales, constantes, temporales, y de funciones, en base al rango al que corresponden.
 class MemoryMap:
     def __init__(self, range_start=0):
         self.int_start = range_start + 10000
@@ -270,6 +278,8 @@ temps = MemoryMap(150000)
 functions = MemoryMap(200000)
 globalvars = MemoryMap(250000)
 
+# Estructura similar a la tabla de símbolos, pero mucho más simplificada.
+# Almacena las direcciones, los tipos y los valores de todas las constantes del programa, a través de un cubo semántico.
 class ConstantTable:
     def __init__(self):
         self.symbols = dict()
@@ -287,6 +297,7 @@ class ConstantTable:
 
 constantTable = ConstantTable()
 
+# Estructura que almacena los datos de los “structs” declarados por el programador, y que además guarda una tabla de símbolos para las instancias de cada struct, así como sus atributos, sus tipos y sus direcciones virtuales.
 class StructManager:
     def __init__(self):
         self.structs = dict()
@@ -335,10 +346,16 @@ from cycler import cycler
 import matplotlib.pyplot as plt
 import numpy as np
 
+# Clase central que maneja las estructuras de memoria y contiene las funciones para realizar las operaciones especiales del lenguaje.
 class VirtualStack:
     def __init__(self):
+        # Estructura que almacena la información de las funciones compiladas del programa, para poder cargar los parámetros que necesita una función y ejecutar el cuádruplo donde esta inicia.
         self.functions = dict()
+
+        # La pila del programa en la que residen los valores en memoria del programa del usuario. Cada registro en la pila corresponde a una estructura de memoria hace un “mapeo” de la dirección virtual al valor almacenado. Cada llamada a una función genera un nuevo registro en la pila. Las variables globales residen siempre en el registro que se encuentra en el fondo de la pila.
         self.stack = [{}]
+
+        # Estructura que almacena los valores constantes usados en el programa.
         self.constants = dict()
         self.retValue = None
         self.fileBuffer = list()
@@ -397,6 +414,7 @@ class VirtualStack:
 
         return self.stack[-1].get(address)
 
+    # Función principal para acceder a un valor en memoria durante la ejecución. Convierte los apuntadores en direcciones, y maneja las estructuras de stack y constants. La dirección se procesa para determinar, en base al rango en el que corresponde, si es una constante, una variable global, o una variable local.
     def getAddressValue(self, address):
         if (address > 100000 and address < 150000):
             return self.constants[address]
@@ -407,6 +425,7 @@ class VirtualStack:
             else:
                 return self.findInStack(address)
 
+    # Función utilizada para registrar los cambios a los valores en ejecución. Recibe la dirección y el valor que se le debe asignar. Determina la estructura que se debe actualizar dependiendo de si la dirección corresponde a un apuntador, a una variable global, o a una variable local.
     def updateAddressValue(self, address, value):
         if type(address) is str and address.startswith('*'):
             address = self.findInStack(int(address[1:]))
