@@ -46,10 +46,6 @@ main
   banana:weight = 1;
   banana:price = 0.5;
 
-  struct product apples[10];
-  load("file", apples);
-  graph(apples);
-
   println("Input value of A:");
   input(A);
 
